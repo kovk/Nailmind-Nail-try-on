@@ -1,0 +1,15 @@
+.git
+.gitignore
+data
+tmp
+*.log
+client
+docs
+__pycache__
+.cache
+.idea
+*.pyc
+*.pyo
+*.db
+cmd
+internal

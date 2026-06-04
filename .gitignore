@@ -1,0 +1,50 @@
+.DS_Store
+
+# IDE and local tool state
+.idea/
+.gradle/
+.kotlin/
+
+# Android / Gradle
+client/android/.gradle/
+client/android/build/
+client/android/app/build/
+client/android/local.properties
+client/android/tools/aapt2/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+server/api/.venv/
+server/api/__pycache__/
+server/api/app/__pycache__/
+server/api/tests/__pycache__/
+server/api/worker/__pycache__/
+
+# Local environment files
+.env
+server/api/.env
+server/api/deploy/.env.remote
+
+# Runtime data, models, and generated artifacts
+server/api/.cache/
+server/api/.idea/
+server/api/data/nailmind.db
+server/api/data/state.json
+server/api/data/results/
+server/api/data/uploads/
+server/api/deploy/data/
+server/api/deploy/models/
+server/api/results/
+models/
+results/
+uploads/
+
+# Logs and temp files
+*.log
+*.tmp
+*.swp

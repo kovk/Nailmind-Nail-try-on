@@ -1,0 +1,7 @@
+FROM crpi-j8uhehfe8m5fvjw2.cn-hangzhou.personal.cr.aliyuncs.com/s1nglet/nailmind-worker:2026-06-03
+
+ENV PIP_DEFAULT_TIMEOUT=180 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+RUN sh -c 'for attempt in 1 2 3; do pip install --no-cache-dir --default-timeout=180 --index-url https://download.pytorch.org/whl/cpu torch==2.5.1 torchvision==0.20.1 && exit 0; echo "torch install failed on attempt ${attempt}, retrying..."; sleep 5; done; exit 1'
+RUN sh -c 'for attempt in 1 2 3; do pip install --no-cache-dir --default-timeout=180 ultralytics==8.3.156 && exit 0; echo "ultralytics install failed on attempt ${attempt}, retrying..."; sleep 5; done; exit 1'

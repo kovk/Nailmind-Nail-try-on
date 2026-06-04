@@ -1,0 +1,159 @@
+:root {
+  --bg: #f4efe8;
+  --panel: rgba(255, 255, 255, 0.82);
+  --ink: #261814;
+  --muted: #6b5a54;
+  --accent: #b6634f;
+  --accent-strong: #8f3e2e;
+  --line: rgba(38, 24, 20, 0.08);
+  --shadow: 0 20px 40px rgba(82, 50, 37, 0.12);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at top left, rgba(182, 99, 79, 0.18), transparent 32%),
+    radial-gradient(circle at bottom right, rgba(143, 62, 46, 0.18), transparent 28%),
+    linear-gradient(135deg, #f7f2ec, #eee5da);
+  font-family: "Avenir Next", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+.shell {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  min-height: 100vh;
+}
+
+.sidebar,
+.content {
+  padding: 28px;
+}
+
+.sidebar {
+  border-right: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(18px);
+}
+
+.brand h1,
+.hero h2 {
+  margin: 0;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: var(--accent-strong);
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.panel,
+.card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  box-shadow: var(--shadow);
+}
+
+.panel {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+label {
+  display: grid;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+input,
+button,
+textarea,
+select {
+  border: 1px solid rgba(38, 24, 20, 0.12);
+  border-radius: 14px;
+  padding: 12px 14px;
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+  color: white;
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+}
+
+.nav {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.nav button {
+  text-align: left;
+}
+
+.hidden {
+  display: none;
+}
+
+.demo {
+  margin: 18px 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.hero {
+  margin-bottom: 20px;
+}
+
+.grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.card {
+  padding: 18px;
+}
+
+.metric {
+  font-size: 32px;
+  font-weight: 700;
+}
+
+.list {
+  display: grid;
+  gap: 10px;
+}
+
+.list-item {
+  padding: 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid var(--line);
+}
+
+.meta {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+@media (max-width: 900px) {
+  .shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+}

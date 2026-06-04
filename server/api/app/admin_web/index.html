@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Nail Mind Admin</title>
+    <link rel="stylesheet" href="/admin/static/styles.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <span class="eyebrow">Nail Mind</span>
+          <h1>运营后台</h1>
+        </div>
+        <div class="demo">
+          <p>运营账号：`operator@nailmind.app / 123456`</p>
+          <p>商家账号：`merchant@nailmind.app / 123456`</p>
+        </div>
+        <form id="login-form" class="panel">
+          <label>
+            邮箱
+            <input id="email" type="email" value="operator@nailmind.app" />
+          </label>
+          <label>
+            密码
+            <input id="password" type="password" value="123456" />
+          </label>
+          <button type="submit">登录后台</button>
+        </form>
+        <nav id="nav" class="nav hidden">
+          <button data-view="overview">概览</button>
+          <button data-view="styles">款式</button>
+          <button data-view="trends">趋势建议</button>
+          <button data-view="requests">商家申请</button>
+          <button data-view="merchant">商家视角</button>
+          <button id="logout" type="button">退出</button>
+        </nav>
+      </aside>
+      <main class="content">
+        <section class="hero">
+          <p class="eyebrow">One Portal / Role Based</p>
+          <h2>运营端和商家端已合并为一套后台</h2>
+          <p id="whoami">未登录</p>
+        </section>
+        <section id="view" class="grid"></section>
+      </main>
+    </div>
+    <script src="/admin/static/app.js"></script>
+  </body>
+</html>

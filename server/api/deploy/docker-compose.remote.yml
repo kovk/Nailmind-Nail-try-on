@@ -1,0 +1,31 @@
+services:
+  nailmind-api:
+    image: crpi-j8uhehfe8m5fvjw2.cn-hangzhou.personal.cr.aliyuncs.com/s1nglet/nailmain-api:2026-06-03
+    container_name: nailmind-api
+    env_file:
+      - .env
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/app/data
+      - ./models:/models
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=5)"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  nailmind-tryon-worker:
+    image: crpi-j8uhehfe8m5fvjw2.cn-hangzhou.personal.cr.aliyuncs.com/s1nglet/nailmind-worker:2026-06-03
+    container_name: nailmind-tryon-worker
+    env_file:
+      - .env
+    depends_on:
+      nailmind-api:
+        condition: service_healthy
+    volumes:
+      - ./data:/app/data
+      - ./models:/models
+    restart: unless-stopped
