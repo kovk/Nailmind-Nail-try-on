@@ -28,6 +28,21 @@ Android 客户端默认地址已配置为：
 - `.env.remote`
 - `remote-deploy.sh`
 
+如果要启用小红书趋势采集，还需要准备：
+
+- `xhs-storage-state.json`
+
+建议最终目录结构：
+
+```text
+/opt/nailmind/
+├── docker-compose.yml
+├── .env
+├── data/
+│   └── xhs-storage-state.json
+└── models/
+```
+
 ## 执行
 
 ```bash
@@ -44,6 +59,18 @@ curl http://127.0.0.1:8080/health
 docker compose -f /opt/nailmind/docker-compose.yml ps
 ```
 
+如果要验证小红书趋势采集环境，再执行：
+
+```bash
+docker exec nailmind-api python -c "import playwright; print('playwright ok')"
+docker exec nailmind-api test -f /app/data/xhs-storage-state.json && echo ok || echo missing
+```
+
 浏览器访问：
 
 - `http://121.40.171.199:8080/admin`
+
+默认账号：
+
+- 运营：`operator@nailmind.app / 123456`
+- 商家：`merchant@nailmind.app / 123456`

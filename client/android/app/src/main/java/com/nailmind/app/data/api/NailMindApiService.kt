@@ -6,6 +6,7 @@ import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Multipart
 import retrofit2.http.POST
+import retrofit2.http.Url
 import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.Query
@@ -49,8 +50,24 @@ interface NailMindApiService {
     suspend fun removeFavorite(@Path("styleId") styleId: String): FavoriteToggleResponse
 
     @Multipart
+    @POST("api/tryon/upload-hand")
+    suspend fun uploadHandImage(@Part file: MultipartBody.Part): TryOnUploadResponse
+
+    @GET("api/tryon/hand-images")
+    suspend fun handImages(): HandImagesResponse
+
+    @POST("api/tryon/try-on")
+    suspend fun syncTryOn(@Body request: SyncTryOnRequest): SyncTryOnResponse
+
+    @GET("api/tryon/history")
+    suspend fun tryOnHistory(): TryOnHistoryResponse
+
+    @GET
+    suspend fun resultImageByUrl(@Url url: String): Response<okhttp3.ResponseBody>
+
+    @Multipart
     @POST("api/try-on/uploads")
-    suspend fun uploadTryOnImage(@Part file: MultipartBody.Part): TryOnUploadResponse
+    suspend fun uploadTryOnImage(@Part file: MultipartBody.Part): LegacyTryOnUploadResponse
 
     @GET("api/try-on/jobs")
     suspend fun tryOnJobs(): TryOnJobsResponse

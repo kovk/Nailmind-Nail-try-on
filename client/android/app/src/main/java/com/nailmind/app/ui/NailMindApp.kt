@@ -1,6 +1,9 @@
 package com.nailmind.app.ui
 
 import android.Manifest
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.content.ContentValues
 import android.content.Intent
 import android.content.Context
 import android.content.pm.PackageManager
@@ -8,6 +11,8 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -81,6 +86,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -106,6 +112,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
+import coil.compose.AsyncImagePainter
+import coil.compose.SubcomposeAsyncImage
+import coil.compose.SubcomposeAsyncImageContent
 import com.nailmind.app.data.api.AuthResponse
 import com.nailmind.app.data.api.AuthUserDto
 import com.nailmind.app.data.api.BookingDto
@@ -115,14 +126,17 @@ import com.nailmind.app.data.api.NailMindRepository
 import com.nailmind.app.data.api.SettingsResponse
 import com.nailmind.app.data.api.StoreDto
 import com.nailmind.app.data.api.StyleDto
-import com.nailmind.app.data.api.TryOnJobDto
+import com.nailmind.app.data.api.TryOnHistoryItemDto
 import com.nailmind.app.data.config.AppConfig
 import com.nailmind.app.ui.theme.RoseAccent
 import com.nailmind.app.ui.theme.RoseTint
 import java.io.File
 import java.io.FileOutputStream
+import java.io.IOException
 import java.util.UUID
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 private enum class MainTab(
@@ -146,6 +160,7 @@ private sealed interface Screen {
     data class TryOnUpload(val styleId: String, val fromFavorites: Boolean = false) : Screen
     data class TryOnProcessing(val styleId: String, val jobId: String) : Screen
     data class TryOnResult(val styleId: String, val jobId: String) : Screen
+    data object TryOnHistory : Screen
     data object Favorites : Screen
     data object BookingRecords : Screen
     data class StoreDetail(val storeId: String, val styleId: String? = null) : Screen
@@ -169,7 +184,9 @@ private data class NailStyle(
     val nailType: String,
     val skinTone: String,
     val colors: List<Color>,
-    val tags: List<String>
+    val tags: List<String>,
+    val imageUrl: String? = null,
+    val tryOnStyleId: Int? = null
 )
 
 private data class Store(
@@ -178,7 +195,10 @@ private data class Store(
     val distance: String,
     val priceBand: String,
     val score: String,
-    val slots: List<String>
+    val slots: List<String>,
+    val openHours: String,
+    val artists: Int,
+    val works: String
 )
 
 private data class BookingRecord(
@@ -197,52 +217,50 @@ private data class UserSettings(
 
 private data class TryOnStatus(
     val jobId: String = "",
+    val styleId: String = "",
+    val styleName: String = "",
     val stage: String = "",
     val progress: Int = 0,
     val status: String = "",
     val errorMessage: String? = null
 )
 
-private val styles = listOf(
-    NailStyle(
-        id = "rose-mist",
-        name = "玫雾法式",
-        vibe = "显白, 通勤, 细闪",
-        price = "￥228",
-        nailType = "方圆甲",
-        skinTone = "黄一白到自然肤色",
-        colors = listOf(Color(0xFFF8C7D6), Color(0xFFFFEEF4), Color(0xFF9B6474)),
-        tags = listOf("推荐", "显白", "法式")
-    ),
-    NailStyle(
-        id = "tea-amber",
-        name = "茶珀猫眼",
-        vibe = "温柔, 气质, 轻奢",
-        price = "￥268",
-        nailType = "杏仁甲",
-        skinTone = "自然肤色到暖肤",
-        colors = listOf(Color(0xFFDFA36E), Color(0xFF7F4C2E), Color(0xFFFFE2C3)),
-        tags = listOf("热门", "猫眼", "秋冬")
-    ),
-    NailStyle(
-        id = "jade-ink",
-        name = "青玉新中式",
-        vibe = "新中式, 高级, 清透",
-        price = "￥288",
-        nailType = "椭圆甲",
-        skinTone = "冷白皮到自然肤色",
-        colors = listOf(Color(0xFF5F8A81), Color(0xFFDCEFE7), Color(0xFF1F403A)),
-        tags = listOf("新中式", "收藏高", "节日")
-    )
-)
+private const val tryOnNotificationChannelId = "tryon_updates"
 
-private val stores = listOf(
-    Store("s1", "Nail Mind 静安店", "1.2km", "￥198-￥398", "4.9", listOf("今天 19:00", "明天 11:30", "明天 14:00")),
-    Store("s2", "Nail Mind 徐汇店", "2.7km", "￥228-￥468", "4.8", listOf("今天 20:00", "明天 10:00", "明天 16:30")),
-    Store("s3", "Nail Mind 浦东店", "4.3km", "￥188-￥328", "4.7", listOf("明天 09:30", "明天 13:00", "周二 18:30"))
-)
+private fun ensureTryOnNotificationChannel(context: Context) {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+    val manager = context.getSystemService(NotificationManager::class.java) ?: return
+    val channel = NotificationChannel(
+        tryOnNotificationChannelId,
+        "试戴提醒",
+        NotificationManager.IMPORTANCE_DEFAULT
+    ).apply {
+        description = "用于提醒试戴结果已生成"
+    }
+    manager.createNotificationChannel(channel)
+}
 
-private val defaultHotKeywords = listOf("法式", "显白", "新中式", "短甲", "猫眼")
+private fun canPostNotifications(context: Context): Boolean {
+    return Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+}
+
+private fun showTryOnReadyNotification(context: Context, styleName: String) {
+    ensureTryOnNotificationChannel(context)
+    if (!canPostNotifications(context)) return
+    val notification = NotificationCompat.Builder(context, tryOnNotificationChannelId)
+        .setSmallIcon(android.R.drawable.ic_dialog_info)
+        .setContentTitle("试戴已完成")
+        .setContentText("$styleName 已生成效果图，可前往“我的 - 试戴记录”查看")
+        .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+        .setAutoCancel(true)
+        .build()
+    NotificationManagerCompat.from(context).notify(styleName.hashCode(), notification)
+}
+
+private val styles: List<NailStyle> = emptyList()
+private val stores: List<Store> = emptyList()
+private val defaultHotKeywords: List<String> = emptyList()
 
 private fun StyleDto.toUi(): NailStyle = NailStyle(
     id = id,
@@ -252,7 +270,9 @@ private fun StyleDto.toUi(): NailStyle = NailStyle(
     nailType = nailType,
     skinTone = skinTone,
     colors = colors.map { Color(android.graphics.Color.parseColor(it)) },
-    tags = tags
+    tags = tags,
+    imageUrl = imageUrl,
+    tryOnStyleId = tryOnStyleId
 )
 
 private fun StoreDto.toUi(): Store = Store(
@@ -261,7 +281,10 @@ private fun StoreDto.toUi(): Store = Store(
     distance = distance,
     priceBand = priceBand,
     score = score,
-    slots = slots
+    slots = slots,
+    openHours = openHours,
+    artists = artists,
+    works = works
 )
 
 private fun AuthUserDto.toUi(): AuthUser = AuthUser(name = name, email = email, preferences = preferences)
@@ -273,6 +296,34 @@ private fun BookingDto.toUi(): BookingRecord = BookingRecord(
     styleName = styleName,
     slot = slot
 )
+
+private fun buildDisplayedTryOnHistory(
+    items: List<TryOnHistoryItemDto>,
+    status: TryOnStatus
+): List<TryOnHistoryItemDto> {
+    val merged = items.toMutableList()
+    val shouldShowPending = status.jobId.isNotBlank() &&
+        status.styleId.isNotBlank() &&
+        status.status in setOf("queued", "processing")
+    if (shouldShowPending && merged.none { it.jobId == status.jobId }) {
+        merged.add(
+            0,
+            TryOnHistoryItemDto(
+                id = "pending-${status.jobId}",
+                jobId = status.jobId,
+                resultUrl = "",
+                durationMs = 0,
+                styleName = status.styleName.ifBlank { "试戴处理中" },
+                styleId = status.styleId,
+                source = "pending",
+                selectedLength = "",
+                selectedShape = "",
+                createdAt = java.time.Instant.now().toString()
+            )
+        )
+    }
+    return merged.sortedByDescending { it.createdAt }.distinctBy { it.styleId }
+}
 
 private fun SettingsResponse.toUi(): UserSettings = UserSettings(
     stylePreferences = stylePreferences,
@@ -309,6 +360,38 @@ private fun copyUriToCache(context: Context, uri: Uri): File? {
         FileOutputStream(file).use { output -> stream.copyTo(output) }
     }
     return file
+}
+
+private fun saveBitmapToGallery(context: Context, bitmap: Bitmap, styleName: String): Result<Unit> {
+    return runCatching {
+        val resolver = context.contentResolver
+        val displayName = "nailmind-${styleName.takeIf { it.isNotBlank() } ?: "tryon"}-${System.currentTimeMillis()}.png"
+        val values = ContentValues().apply {
+            put(MediaStore.Images.Media.DISPLAY_NAME, displayName)
+            put(MediaStore.Images.Media.MIME_TYPE, "image/png")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                put(MediaStore.Images.Media.RELATIVE_PATH, "${Environment.DIRECTORY_PICTURES}/NailMind")
+                put(MediaStore.Images.Media.IS_PENDING, 1)
+            }
+        }
+        val collection = MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+        val uri = resolver.insert(collection, values) ?: throw IOException("无法创建图片保存记录")
+        try {
+            resolver.openOutputStream(uri)?.use { output ->
+                if (!bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)) {
+                    throw IOException("图片写入失败")
+                }
+            } ?: throw IOException("无法打开图片输出流")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                values.clear()
+                values.put(MediaStore.Images.Media.IS_PENDING, 0)
+                resolver.update(uri, values, null, null)
+            }
+        } catch (error: Exception) {
+            resolver.delete(uri, null, null)
+            throw error
+        }
+    }
 }
 
 private fun galleryPermission(): String = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -357,7 +440,7 @@ fun NailMindApp() {
     val favorites = remember { mutableStateListOf<String>() }
     var selectedLength by remember { mutableStateOf("自然短甲") }
     var selectedShape by remember { mutableStateOf("方圆") }
-    var selectedStoreId by remember { mutableStateOf(stores.first().id) }
+    var selectedStoreId by remember { mutableStateOf("") }
     var authUser by remember { mutableStateOf<AuthUser?>(null) }
     var authToken by remember { mutableStateOf(sharedPreferences.getString(AppConfig.authTokenPreference, null)) }
     var authLoading by remember { mutableStateOf(false) }
@@ -369,24 +452,42 @@ fun NailMindApp() {
     var storeItems by remember { mutableStateOf(stores) }
     var bookingRecords by remember { mutableStateOf(emptyList<BookingRecord>()) }
     var pendingBooking by remember { mutableStateOf<BookingDto?>(null) }
-    var userSettings by remember {
-        mutableStateOf(
-            UserSettings(
-                stylePreferences = "显白、法式、新中式",
-                notifications = "试戴完成、预约提醒、活动通知",
-                privacy = "手部照片仅用于试戴与订单关联"
-            )
-        )
-    }
+    var userSettings by remember { mutableStateOf(UserSettings("", "", "")) }
     var searchResults by remember { mutableStateOf(styleItems) }
     var tryOnStatus by remember { mutableStateOf(TryOnStatus()) }
-    var latestTryOnJob by remember { mutableStateOf<TryOnJobDto?>(null) }
+    var tryOnHistoryItems by remember { mutableStateOf(emptyList<TryOnHistoryItemDto>()) }
     var latestTryOnBitmap by remember { mutableStateOf<Bitmap?>(null) }
     var lastTryOnSourceFile by remember { mutableStateOf<File?>(null) }
+    var lastTryOnHandId by remember { mutableStateOf<String?>(null) }
     var bookingSubmitting by remember { mutableStateOf(false) }
     var bookingError by remember { mutableStateOf<String?>(null) }
     var tryOnSubmitting by remember { mutableStateOf(false) }
     var tryOnError by remember { mutableStateOf<String?>(null) }
+    var pageRefreshing by remember { mutableStateOf(false) }
+    var tryOnPollJob by remember { mutableStateOf<Job?>(null) }
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { }
+
+    fun requestNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !canPostNotifications(context)) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
+    fun persistPendingTryOn(jobId: String, styleId: String) {
+        sharedPreferences.edit()
+            .putString(AppConfig.pendingTryOnJobPreference, jobId)
+            .putString(AppConfig.pendingTryOnStylePreference, styleId)
+            .apply()
+    }
+
+    fun clearPendingTryOn() {
+        sharedPreferences.edit()
+            .remove(AppConfig.pendingTryOnJobPreference)
+            .remove(AppConfig.pendingTryOnStylePreference)
+            .apply()
+    }
 
     fun resetToLogin() {
         authUser = null
@@ -395,14 +496,18 @@ fun NailMindApp() {
         favorites.clear()
         bookingRecords = emptyList()
         pendingBooking = null
-        userSettings = UserSettings("显白、法式、新中式", "试戴完成、预约提醒、活动通知", "手部照片仅用于试戴与订单关联")
+        userSettings = UserSettings("", "", "")
         tryOnStatus = TryOnStatus()
-        latestTryOnJob = null
+        tryOnHistoryItems = emptyList()
+        tryOnPollJob?.cancel()
+        tryOnPollJob = null
         latestTryOnBitmap = null
         lastTryOnSourceFile = null
+        lastTryOnHandId = null
         bookingError = null
         tryOnError = null
         sharedPreferences.edit().remove(AppConfig.authTokenPreference).apply()
+        clearPendingTryOn()
         currentTab = MainTab.Home
         stack.clear()
         stack.add(Screen.Login)
@@ -448,6 +553,91 @@ fun NailMindApp() {
         }
     }
 
+    fun refreshTryOnHistory() {
+        coroutineScope.launch {
+            runCatching { repository.tryOnHistory().items }
+                .onSuccess { tryOnHistoryItems = it }
+        }
+    }
+
+    fun openTryOnHistoryResult(item: TryOnHistoryItemDto) {
+        coroutineScope.launch {
+            runCatching {
+                val imageBytes = repository.resultImageBytesByUrl(item.resultUrl)
+                BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
+            }.onSuccess { bitmap ->
+                val resultJobId = item.jobId ?: item.id
+                latestTryOnBitmap = bitmap
+                tryOnStatus = TryOnStatus(
+                    jobId = resultJobId,
+                    styleId = item.styleId,
+                    styleName = item.styleName,
+                    stage = item.source,
+                    progress = 100,
+                    status = "completed"
+                )
+                go(Screen.TryOnResult(item.styleId, resultJobId))
+            }.onFailure { error ->
+                tryOnError = error.message ?: "打开试戴记录失败"
+            }
+        }
+    }
+
+    fun monitorTryOnJob(styleId: String, jobId: String, navigateToProcessing: Boolean = false) {
+        tryOnPollJob?.cancel()
+        tryOnPollJob = coroutineScope.launch {
+            if (navigateToProcessing) {
+                go(Screen.TryOnProcessing(styleId, jobId))
+            }
+            while (isActive) {
+                runCatching { repository.tryOnJob(jobId) }
+                    .onSuccess { job ->
+                        tryOnStatus = TryOnStatus(
+                            jobId = job.id,
+                            styleId = job.styleId,
+                            styleName = job.styleName,
+                            stage = job.stage,
+                            progress = job.progress,
+                            status = job.status,
+                            errorMessage = job.errorMessage
+                        )
+                        when (job.status) {
+                            "completed" -> {
+                                val imageBytes = repository.tryOnResultImageBytes(jobId)
+                                latestTryOnBitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
+                                refreshTryOnHistory()
+                                clearPendingTryOn()
+                                tryOnSubmitting = false
+                                val currentScreen = stack.lastOrNull()
+                                val viewingJob = currentScreen == Screen.TryOnProcessing(styleId, jobId) ||
+                                    currentScreen == Screen.TryOnResult(styleId, jobId)
+                                if (viewingJob) {
+                                    stack[stack.lastIndex] = Screen.TryOnResult(styleId, jobId)
+                                } else {
+                                    showTryOnReadyNotification(
+                                        context,
+                                        styleItems.firstOrNull { it.id == styleId }?.name ?: job.styleName
+                                    )
+                                }
+                                return@launch
+                            }
+
+                            "failed" -> {
+                                clearPendingTryOn()
+                                tryOnSubmitting = false
+                                tryOnError = job.errorMessage ?: "试戴生成失败，请更换更清晰的手部照片后重试"
+                                return@launch
+                            }
+                        }
+                    }
+                    .onFailure { error ->
+                        tryOnStatus = tryOnStatus.copy(errorMessage = error.message ?: "试戴任务状态获取失败")
+                    }
+                delay(2000)
+            }
+        }
+    }
+
     fun launchTryOn(styleId: String, sourceFile: File, sourceChannel: String) {
         coroutineScope.launch {
             tryOnSubmitting = true
@@ -455,7 +645,7 @@ fun NailMindApp() {
             latestTryOnBitmap = null
             runCatching {
                 lastTryOnSourceFile = sourceFile
-                val upload = repository.uploadTryOnImage(sourceFile)
+                val upload = repository.uploadAsyncTryOnImage(sourceFile)
                 repository.createTryOnJob(
                     styleId = styleId,
                     sourceImageKey = upload.objectKey,
@@ -470,13 +660,67 @@ fun NailMindApp() {
                     sourceChannel = sourceChannel,
                     payload = mapOf("fileName" to sourceFile.name)
                 )
-                latestTryOnJob = job
-                tryOnStatus = TryOnStatus(jobId = job.id, stage = job.stage, progress = job.progress, status = job.status)
-                go(Screen.TryOnProcessing(styleId, job.id))
+                requestNotificationPermissionIfNeeded()
+                persistPendingTryOn(job.id, styleId)
+                tryOnStatus = TryOnStatus(
+                    jobId = job.id,
+                    styleId = styleId,
+                    styleName = styleItems.firstOrNull { it.id == styleId }?.name.orEmpty(),
+                    stage = job.stage,
+                    progress = job.progress,
+                    status = job.status,
+                    errorMessage = job.errorMessage
+                )
+                tryOnSubmitting = false
+                monitorTryOnJob(styleId, job.id, navigateToProcessing = true)
             }.onFailure { error ->
                 tryOnError = error.message ?: "创建试戴任务失败"
+                tryOnSubmitting = false
             }
-            tryOnSubmitting = false
+        }
+    }
+
+    fun rerunTryOn(styleId: String, jobId: String) {
+        coroutineScope.launch {
+            tryOnSubmitting = true
+            tryOnError = null
+            latestTryOnBitmap = null
+            runCatching {
+                val canRerenderExistingJob = Regex("^tryon-\\d+$").matches(jobId) || Regex("^job-\\d+$").matches(jobId)
+                if (canRerenderExistingJob) {
+                    repository.rerenderTryOn(
+                        jobId = jobId,
+                        selectedLength = selectedLengthToApi(selectedLength),
+                        selectedShape = selectedShapeToApi(selectedShape)
+                    )
+                } else {
+                    val lastFile = lastTryOnSourceFile ?: error("缺少上一张手部照片，请重新上传")
+                    val upload = repository.uploadAsyncTryOnImage(lastFile)
+                    repository.createTryOnJob(
+                        styleId = styleId,
+                        sourceImageKey = upload.objectKey,
+                        selectedLength = selectedLengthToApi(selectedLength),
+                        selectedShape = selectedShapeToApi(selectedShape)
+                    )
+                }
+            }.onSuccess { job ->
+                persistPendingTryOn(job.id, styleId)
+                tryOnStatus = TryOnStatus(
+                    jobId = job.id,
+                    styleId = styleId,
+                    styleName = styleItems.firstOrNull { it.id == styleId }?.name.orEmpty(),
+                    stage = job.stage,
+                    progress = job.progress,
+                    status = job.status,
+                    errorMessage = job.errorMessage
+                )
+                tryOnSubmitting = false
+                stack[stack.lastIndex] = Screen.TryOnProcessing(styleId, job.id)
+                monitorTryOnJob(styleId, job.id)
+            }.onFailure { error ->
+                tryOnError = error.message ?: "重新生成试戴失败"
+                tryOnSubmitting = false
+            }
         }
     }
 
@@ -491,25 +735,38 @@ fun NailMindApp() {
     suspend fun bootstrapData() {
         val me = repository.authMe().user.toUi()
         val home = repository.home()
-        val fetchedStyles = repository.styles().items.map { it.toUi() }
+        val fetchedStyles = repository.styles().items.map { it.toUi() }.filter { !it.imageUrl.isNullOrBlank() }
         val fetchedFavorites = repository.favorites().items.map { it.id }
         val fetchedStores = repository.stores().items.map { it.toUi() }
         val fetchedBookings = repository.bookings().items.map { it.toUi() }
         val fetchedSettings = repository.settings().toUi()
+        val fetchedTryOnHistory = repository.tryOnHistory().items
 
         authUser = me
-        styleItems = fetchedStyles.ifEmpty { styles }
+        styleItems = fetchedStyles
         favorites.clear()
         favorites.addAll(fetchedFavorites)
-        storeItems = fetchedStores.ifEmpty { stores }
+        storeItems = fetchedStores
         bookingRecords = fetchedBookings
         userSettings = fetchedSettings
-        hotKeywords = home.hotKeywords.ifEmpty { defaultHotKeywords }
-        homeRecommended = home.recommended.map { it.toUi() }.ifEmpty { styleItems.take(2) }
-        homeHot = home.hot.map { it.toUi() }.ifEmpty { styleItems }
+        tryOnHistoryItems = fetchedTryOnHistory
+        hotKeywords = home.hotKeywords
+        homeRecommended = home.recommended.map { it.toUi() }.filter { !it.imageUrl.isNullOrBlank() }
+        homeHot = home.hot.map { it.toUi() }.filter { !it.imageUrl.isNullOrBlank() }
         searchResults = styleItems
         if (selectedStoreId !in storeItems.map { it.id }) {
-            selectedStoreId = storeItems.firstOrNull()?.id ?: stores.first().id
+            selectedStoreId = storeItems.firstOrNull()?.id.orEmpty()
+        }
+    }
+
+    fun refreshPageData() {
+        coroutineScope.launch {
+            pageRefreshing = true
+            runCatching { bootstrapData() }
+                .onFailure { error ->
+                    Toast.makeText(context, error.message ?: "刷新失败，请稍后再试", Toast.LENGTH_SHORT).show()
+                }
+            pageRefreshing = false
         }
     }
 
@@ -522,6 +779,18 @@ fun NailMindApp() {
                 }
         }
     }
+
+    fun openBookingForStyle(styleId: String) {
+        val firstStore = storeItems.firstOrNull()
+        if (firstStore == null) {
+            Toast.makeText(context, "当前还没有可预约门店", Toast.LENGTH_SHORT).show()
+            return
+        }
+        selectedStoreId = firstStore.id
+        go(Screen.BookingForm(firstStore.id, styleId))
+    }
+
+    val displayedTryOnHistoryItems = buildDisplayedTryOnHistory(tryOnHistoryItems, tryOnStatus)
 
     fun findBooking(bookingId: String): BookingDto? {
         if (pendingBooking?.id == bookingId) return pendingBooking
@@ -553,6 +822,13 @@ fun NailMindApp() {
 
     LaunchedEffect(authToken) {
         NailMindApiClient.setAuthTokenProvider { authToken }
+        if (!authToken.isNullOrBlank()) {
+            val pendingJobId = sharedPreferences.getString(AppConfig.pendingTryOnJobPreference, null)
+            val pendingStyleId = sharedPreferences.getString(AppConfig.pendingTryOnStylePreference, null)
+            if (!pendingJobId.isNullOrBlank() && !pendingStyleId.isNullOrBlank()) {
+                monitorTryOnJob(pendingStyleId, pendingJobId)
+            }
+        }
     }
 
     val current = stack.last()
@@ -589,6 +865,7 @@ fun NailMindApp() {
         is Screen.TryOnUpload -> "上传手部照片"
         is Screen.TryOnProcessing -> "手部识别中"
         is Screen.TryOnResult -> "试戴结果"
+        Screen.TryOnHistory -> "试戴记录"
         Screen.Favorites -> "我的收藏"
         Screen.BookingRecords -> "预约记录"
         is Screen.StoreDetail -> "门店详情"
@@ -737,11 +1014,7 @@ fun NailMindApp() {
                             Text("AI试戴")
                         }
                         OutlinedButton(
-                            onClick = {
-                                val firstStore = storeItems.firstOrNull() ?: stores.first()
-                                selectedStoreId = firstStore.id
-                                go(Screen.BookingForm(firstStore.id, styleDetailStyle.id))
-                            },
+                            onClick = { openBookingForStyle(styleDetailStyle.id) },
                             modifier = Modifier.weight(1.1f)
                         ) {
                             Text("预约同款")
@@ -766,8 +1039,8 @@ fun NailMindApp() {
                     primaryLabel = "登录",
                     secondaryLabel = "没有账号，去注册",
                     initialName = "",
-                    initialEmail = "luna@nailmind.app",
-                    initialPassword = "123456",
+                    initialEmail = "",
+                    initialPassword = "",
                     showNameField = false,
                     loading = authLoading,
                     errorMessage = authError,
@@ -798,9 +1071,9 @@ fun NailMindApp() {
                     subtitle = "注册后才能保存收藏、试戴记录和预约订单。",
                     primaryLabel = "注册并进入",
                     secondaryLabel = "已有账号，去登录",
-                    initialName = "Luna",
-                    initialEmail = "luna@nailmind.app",
-                    initialPassword = "123456",
+                    initialName = "",
+                    initialEmail = "",
+                    initialPassword = "",
                     showNameField = true,
                     loading = authLoading,
                     errorMessage = authError,
@@ -808,7 +1081,7 @@ fun NailMindApp() {
                         coroutineScope.launch {
                             authLoading = true
                             authError = null
-                            runCatching { repository.register(name = name.ifBlank { "Luna" }, email = email, password = password) }
+                            runCatching { repository.register(name = name.ifBlank { "新用户" }, email = email, password = password) }
                                 .onSuccess {
                                     completeAuth(it)
                                     runCatching { bootstrapData() }
@@ -830,11 +1103,20 @@ fun NailMindApp() {
                     MainTab.Home -> HomeScreen(
                         recommended = homeRecommended,
                         hot = homeHot,
+                        refreshing = pageRefreshing,
+                        onRefresh = ::refreshPageData,
                         onSearch = { go(Screen.Search) },
+                        onSeeMore = {
+                            currentTab = MainTab.Styles
+                            stack.clear()
+                            stack.add(Screen.Tab(MainTab.Styles))
+                        },
                         onStyleClick = { go(Screen.StyleDetail(it)) }
                     )
                     MainTab.Styles -> StylesScreen(
                         styles = styleItems,
+                        refreshing = pageRefreshing,
+                        onRefresh = ::refreshPageData,
                         onStyleClick = { go(Screen.StyleDetail(it)) }
                     )
                     MainTab.TryOn -> TryOnHubScreen(
@@ -848,10 +1130,11 @@ fun NailMindApp() {
                         onStoreClick = { go(Screen.StoreDetail(it, null)) }
                     )
                     MainTab.Profile -> ProfileScreen(
-                        user = authUser ?: AuthUser("Luna", "luna@nailmind.app"),
+                        user = authUser ?: AuthUser("账户", ""),
                         favoritesCount = favorites.size,
-                        preferenceSummary = authUser?.preferences?.joinToString(" / ").orEmpty(),
+                        tryOnHistoryCount = displayedTryOnHistoryItems.size,
                         onFavorites = { go(Screen.Favorites) },
+                        onTryOnHistory = { go(Screen.TryOnHistory) },
                         onRecords = { go(Screen.BookingRecords) },
                         onSettings = { go(Screen.Settings) }
                     )
@@ -864,11 +1147,7 @@ fun NailMindApp() {
                         favorite = favorites.contains(style.id),
                         onToggleFavorite = { toggleFavorite(style.id) },
                         onTryOn = { go(Screen.TryOnUpload(style.id)) },
-                        onBook = {
-                            val firstStore = storeItems.firstOrNull() ?: stores.first()
-                            selectedStoreId = firstStore.id
-                            go(Screen.BookingForm(firstStore.id, style.id))
-                        }
+                        onBook = { openBookingForStyle(style.id) }
                     )
                 }
 
@@ -907,105 +1186,67 @@ fun NailMindApp() {
                 )
 
                 is Screen.TryOnProcessing -> {
-                    LaunchedEffect(screen.jobId) {
-                        var consecutiveFailures = 0
-                        while (true) {
-                            val outcome = runCatching { repository.tryOnResult(screen.jobId) }
-                            outcome.onSuccess { job ->
-                                consecutiveFailures = 0
-                                latestTryOnJob = job
-                                tryOnStatus = TryOnStatus(
-                                    jobId = job.id,
-                                    stage = job.stage,
-                                    progress = job.progress,
-                                    status = job.status,
-                                    errorMessage = job.errorMessage
-                                )
-                                if (job.status == "completed") {
-                                    val imageBytes = runCatching { repository.tryOnResultImageBytes(screen.jobId) }.getOrNull()
-                                    latestTryOnBitmap = imageBytes?.let { BitmapFactory.decodeByteArray(it, 0, it.size) }
-                                    stack.removeLast()
-                                    stack.add(Screen.TryOnResult(screen.styleId, screen.jobId))
-                                    return@LaunchedEffect
-                                }
-                                if (job.status == "failed") {
-                                    return@LaunchedEffect
-                                }
-                            }.onFailure { error ->
-                                consecutiveFailures += 1
-                                tryOnStatus = tryOnStatus.copy(
-                                    errorMessage = if (consecutiveFailures >= 3) {
-                                        error.message ?: "试戴进度获取失败，请稍后重试"
-                                    } else {
-                                        null
-                                    }
-                                )
-                            }
-                            delay(1500)
-                        }
-                    }
                     TryOnProcessingScreen(
                         stage = tryOnStatus.stage,
                         progress = tryOnStatus.progress,
                         errorMessage = tryOnStatus.errorMessage,
-                        onDone = { go(Screen.TryOnResult(screen.styleId, screen.jobId)) }
+                        onDone = { go(Screen.TryOnResult(screen.styleId, screen.jobId)) },
+                        onLeave = {
+                            currentTab = MainTab.Home
+                            stack.clear()
+                            stack.add(Screen.Tab(MainTab.Home))
+                        }
                     )
                 }
 
                 is Screen.TryOnResult -> TryOnResultScreen(
                     style = styleItems.firstOrNull { it.id == screen.styleId } ?: return@AnimatedContent,
                     favorite = favorites.contains(screen.styleId),
-                    length = selectedLength,
-                    shape = selectedShape,
-                    resultStatus = latestTryOnJob?.status ?: "",
+                    resultStatus = tryOnStatus.status,
                     resultBitmap = latestTryOnBitmap,
-                    onLengthChange = {
-                        selectedLength = it
-                        coroutineScope.launch {
-                            runCatching {
-                                repository.rerenderTryOn(
-                                    screen.jobId,
-                                    selectedLength = selectedLengthToApi(selectedLength),
-                                    selectedShape = selectedShapeToApi(selectedShape)
-                                )
-                            }.onSuccess { rerendered ->
-                                latestTryOnJob = rerendered
-                                latestTryOnBitmap = null
-                                tryOnStatus = TryOnStatus(jobId = rerendered.id, stage = rerendered.stage, progress = rerendered.progress, status = rerendered.status)
-                                go(Screen.TryOnProcessing(screen.styleId, screen.jobId))
-                            }
-                        }
-                    },
-                    onShapeChange = {
-                        selectedShape = it
-                        coroutineScope.launch {
-                            runCatching {
-                                repository.rerenderTryOn(
-                                    screen.jobId,
-                                    selectedLength = selectedLengthToApi(selectedLength),
-                                    selectedShape = selectedShapeToApi(selectedShape)
-                                )
-                            }.onSuccess { rerendered ->
-                                latestTryOnJob = rerendered
-                                latestTryOnBitmap = null
-                                tryOnStatus = TryOnStatus(jobId = rerendered.id, stage = rerendered.stage, progress = rerendered.progress, status = rerendered.status)
-                                go(Screen.TryOnProcessing(screen.styleId, screen.jobId))
-                            }
-                        }
-                    },
+                    onOpenStyle = { go(Screen.StyleDetail(screen.styleId)) },
                     onRetake = { go(Screen.TryOnUpload(screen.styleId)) },
                     onToggleFavorite = { toggleFavorite(screen.styleId) },
-                    onBook = { go(Screen.BookingForm(selectedStoreId, screen.styleId)) }
+                    onBook = { openBookingForStyle(screen.styleId) },
+                    onSaveImage = {
+                        val bitmap = latestTryOnBitmap
+                        if (bitmap == null) {
+                            Toast.makeText(context, "试戴图还没生成完成", Toast.LENGTH_SHORT).show()
+                        } else {
+                            saveBitmapToGallery(context, bitmap, styleItems.firstOrNull { it.id == screen.styleId }?.name ?: "tryon")
+                                .onSuccess {
+                                    Toast.makeText(context, "图片已保存到相册", Toast.LENGTH_SHORT).show()
+                                }
+                                .onFailure { error ->
+                                    Toast.makeText(context, error.message ?: "保存失败，请稍后再试", Toast.LENGTH_SHORT).show()
+                                }
+                        }
+                    }
+                )
+
+                Screen.TryOnHistory -> TryOnHistoryScreen(
+                    items = displayedTryOnHistoryItems,
+                    styles = styleItems,
+                    refreshing = pageRefreshing,
+                    onRefresh = ::refreshPageData,
+                    onOpenResult = { openTryOnHistoryResult(it) },
+                    onTryAgain = { go(Screen.TryOnUpload(it, true)) }
                 )
 
                 Screen.Favorites -> FavoritesScreen(
                     styles = styleItems.filter { favorites.contains(it.id) },
+                    refreshing = pageRefreshing,
+                    onRefresh = ::refreshPageData,
                     onStyleClick = { go(Screen.StyleDetail(it)) },
                     onRetake = { go(Screen.TryOnUpload(it, true)) },
-                    onBook = { go(Screen.BookingForm((storeItems.firstOrNull() ?: stores.first()).id, it)) }
+                    onBook = ::openBookingForStyle
                 )
 
-                Screen.BookingRecords -> BookingRecordsScreen(records = bookingRecords)
+                Screen.BookingRecords -> BookingRecordsScreen(
+                    records = bookingRecords,
+                    refreshing = pageRefreshing,
+                    onRefresh = ::refreshPageData
+                )
 
                 is Screen.StoreDetail -> {
                     val store = storeItems.firstOrNull { it.id == screen.storeId } ?: return@AnimatedContent
@@ -1013,7 +1254,12 @@ fun NailMindApp() {
                         store = store,
                         onBook = {
                             selectedStoreId = store.id
-                            go(Screen.BookingForm(store.id, screen.styleId ?: (styleItems.firstOrNull()?.id ?: styles.first().id)))
+                            val targetStyleId = screen.styleId ?: styleItems.firstOrNull()?.id
+                            if (targetStyleId == null) {
+                                Toast.makeText(context, "当前还没有可预约款式", Toast.LENGTH_SHORT).show()
+                            } else {
+                                go(Screen.BookingForm(store.id, targetStyleId))
+                            }
                         }
                     )
                 }
@@ -1103,116 +1349,122 @@ fun NailMindApp() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun HomeScreen(
     recommended: List<NailStyle>,
     hot: List<NailStyle>,
+    refreshing: Boolean,
+    onRefresh: () -> Unit,
     onSearch: () -> Unit,
+    onSeeMore: () -> Unit,
     onStyleClick: (String) -> Unit
 ) {
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 18.dp),
-        verticalArrangement = Arrangement.spacedBy(24.dp)
-    ) {
-        item {
-            Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(
-                            text = "Nail Mind",
-                            fontSize = 28.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "发现适合你的美甲风格",
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.68f),
-                            fontSize = 14.sp
-                        )
-                    }
-                    IconButton(onClick = {}) {
-                        Icon(
-                            Icons.Rounded.NotificationsNone,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                }
-
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(onClick = onSearch),
-                    color = MaterialTheme.colorScheme.surface,
-                    shape = MaterialTheme.shapes.medium,
-                    border = androidx.compose.foundation.BorderStroke(
-                        1.dp,
-                        MaterialTheme.colorScheme.outline.copy(alpha = 0.7f)
-                    )
-                ) {
+    PullToRefreshBox(isRefreshing = refreshing, onRefresh = onRefresh, modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 18.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
+        ) {
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
                     Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                text = "Nail Mind",
+                                fontSize = 28.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "发现适合你的美甲风格",
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.68f),
+                                fontSize = 14.sp
+                            )
+                        }
+                        IconButton(onClick = {}) {
+                            Icon(
+                                Icons.Rounded.NotificationsNone,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+
+                    Surface(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            .clickable(onClick = onSearch),
+                        color = MaterialTheme.colorScheme.surface,
+                        shape = MaterialTheme.shapes.medium,
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            MaterialTheme.colorScheme.outline.copy(alpha = 0.7f)
+                        )
                     ) {
-                        Icon(
-                            Icons.Rounded.Search,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                        )
-                        Text(
-                            text = "搜索款式 / 风格 / 门店",
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(
+                                Icons.Rounded.Search,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                            )
+                            Text(
+                                text = "搜索款式 / 风格 / 门店",
+                                modifier = Modifier.weight(1f),
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.42f),
+                                fontSize = 14.sp
+                            )
+                            Text(
+                                text = "输入关键词",
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.28f),
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
+                }
+            }
+            item {
+                HomeSectionHeader(title = "推荐", onSeeMore = onSeeMore)
+            }
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    recommended.take(2).forEach { style ->
+                        HomeFeaturedCard(
+                            style = style,
                             modifier = Modifier.weight(1f),
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.42f),
-                            fontSize = 14.sp
-                        )
-                        Text(
-                            text = "输入关键词",
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.28f),
-                            fontSize = 12.sp
+                            onClick = { onStyleClick(style.id) }
                         )
                     }
                 }
             }
-        }
-        item {
-            HomeSectionHeader(title = "推荐")
-        }
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                recommended.take(2).forEach { style ->
-                    HomeFeaturedCard(
-                        style = style,
-                        modifier = Modifier.weight(1f),
-                        onClick = { onStyleClick(style.id) }
-                    )
-                }
+            item {
+                HomeSectionHeader(title = "热门款式", onSeeMore = onSeeMore)
             }
-        }
-        item {
-            HomeSectionHeader(title = "热门款式")
-        }
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                hot.take(3).forEach { style ->
-                    HomeCompactCard(
-                        style = style,
-                        modifier = Modifier.weight(1f),
-                        onClick = { onStyleClick(style.id) }
-                    )
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    hot.take(3).forEach { style ->
+                        HomeCompactCard(
+                            style = style,
+                            modifier = Modifier.weight(1f),
+                            onClick = { onStyleClick(style.id) }
+                        )
+                    }
                 }
             }
         }
@@ -1220,7 +1472,7 @@ private fun HomeScreen(
 }
 
 @Composable
-private fun HomeSectionHeader(title: String) {
+private fun HomeSectionHeader(title: String, onSeeMore: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
@@ -1239,7 +1491,10 @@ private fun HomeSectionHeader(title: String) {
             fontSize = 21.sp
         )
         Spacer(Modifier.weight(1f))
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier.clickable(onClick = onSeeMore),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Text(
                 text = "查看更多",
                 color = MaterialTheme.colorScheme.primary,
@@ -1340,35 +1595,34 @@ private fun HomeCompactCard(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun StylesScreen(styles: List<NailStyle>, onStyleClick: (String) -> Unit) {
-    val categories = listOf("全部", "推荐", "法式", "猫眼", "新中式", "显白", "短甲友好")
-    val priceRanges = listOf("全部价格", "200以下", "200-260", "260以上")
+private fun StylesScreen(
+    styles: List<NailStyle>,
+    refreshing: Boolean,
+    onRefresh: () -> Unit,
+    onStyleClick: (String) -> Unit
+) {
+    val categories = listOf("全部") + styles.flatMap { it.tags }.distinct().take(8)
     val nailTypes = listOf("全部甲型") + styles.map { it.nailType }.distinct()
-    val skinTones = listOf("全部肤色", "黄一白", "自然肤色", "暖肤", "冷白皮")
-    val scenes = listOf("全部场景", "通勤", "约会", "节日", "秋冬", "轻奢", "新中式")
+    val skinTones = listOf("全部肤色") + styles.map { it.skinTone }.distinct().take(6)
+    val scenes = listOf("全部场景") + styles.flatMap { style ->
+        style.vibe.split(",", "，").map { it.trim() }.filter { it.isNotBlank() }
+    }.distinct().take(8)
 
     var selectedCategory by remember { mutableStateOf(categories.first()) }
     var showAdvanced by remember { mutableStateOf(false) }
-    var selectedPriceRange by remember { mutableStateOf(priceRanges.first()) }
     var selectedNailType by remember { mutableStateOf(nailTypes.first()) }
     var selectedSkinTone by remember { mutableStateOf(skinTones.first()) }
     var selectedScene by remember { mutableStateOf(scenes.first()) }
 
     val filteredStyles = styles.filter { style ->
-        val priceValue = style.price.filter { it.isDigit() }.toIntOrNull() ?: 0
         val matchCategory = when (selectedCategory) {
             "全部" -> true
             "短甲友好" -> style.vibe.contains("短") || style.tags.any { it.contains("短") }
             else -> style.name.contains(selectedCategory) ||
                 style.vibe.contains(selectedCategory) ||
                 style.tags.any { it.contains(selectedCategory) }
-        }
-        val matchPrice = when (selectedPriceRange) {
-            "200以下" -> priceValue in 1..199
-            "200-260" -> priceValue in 200..260
-            "260以上" -> priceValue >= 261
-            else -> true
         }
         val matchNailType = selectedNailType == "全部甲型" || style.nailType == selectedNailType
         val matchSkinTone = selectedSkinTone == "全部肤色" || style.skinTone.contains(selectedSkinTone)
@@ -1377,104 +1631,108 @@ private fun StylesScreen(styles: List<NailStyle>, onStyleClick: (String) -> Unit
             style.tags.any { it.contains(selectedScene) } ||
             style.name.contains(selectedScene)
 
-        matchCategory && matchPrice && matchNailType && matchSkinTone && matchScene
+        matchCategory && matchNailType && matchSkinTone && matchScene
     }
 
-    Row(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-    ) {
-        Column(
+    PullToRefreshBox(isRefreshing = refreshing, onRefresh = onRefresh, modifier = Modifier.fillMaxSize()) {
+        Row(
             modifier = Modifier
-                .width(92.dp)
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.96f))
-                .padding(vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .background(MaterialTheme.colorScheme.background)
         ) {
-            categories.forEach { category ->
-                Surface(
-                    modifier = Modifier
-                        .padding(horizontal = 10.dp)
-                        .fillMaxWidth()
-                        .clickable { selectedCategory = category },
-                    color = if (selectedCategory == category) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else Color.Transparent,
-                    shape = MaterialTheme.shapes.medium
-                ) {
-                    Column(
-                        modifier = Modifier.padding(vertical = 12.dp, horizontal = 8.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+            Column(
+                modifier = Modifier
+                    .width(92.dp)
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.96f))
+                    .padding(vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                categories.forEach { category ->
+                    Surface(
+                        modifier = Modifier
+                            .padding(horizontal = 10.dp)
+                            .fillMaxWidth()
+                            .clickable { selectedCategory = category },
+                        color = if (selectedCategory == category) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else Color.Transparent,
+                        shape = MaterialTheme.shapes.medium
                     ) {
-                        Text(
-                            text = category,
-                            color = if (selectedCategory == category) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f),
-                            fontSize = 13.sp,
-                            fontWeight = if (selectedCategory == category) FontWeight.Bold else FontWeight.Medium,
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                }
-            }
-        }
-
-        LazyColumn(
-            modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            item {
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
+                        Column(
+                            modifier = Modifier.padding(vertical = 12.dp, horizontal = 8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text("款式库", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                                Text(
-                                    "当前分类: $selectedCategory",
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.64f),
-                                    fontSize = 13.sp
-                                )
-                            }
-                            OutlinedButton(onClick = { showAdvanced = !showAdvanced }) {
-                                Text(if (showAdvanced) "收起筛选" else "高级筛选")
-                            }
-                        }
-                        if (showAdvanced) {
-                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                LibraryFilterGroup("价格区间", priceRanges, selectedPriceRange) { selectedPriceRange = it }
-                                LibraryFilterGroup("适合甲型", nailTypes, selectedNailType) { selectedNailType = it }
-                                LibraryFilterGroup("适合肤色", skinTones, selectedSkinTone) { selectedSkinTone = it }
-                                LibraryFilterGroup("场景风格", scenes, selectedScene) { selectedScene = it }
-                            }
+                            Text(
+                                text = category,
+                                color = if (selectedCategory == category) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f),
+                                fontSize = 13.sp,
+                                fontWeight = if (selectedCategory == category) FontWeight.Bold else FontWeight.Medium,
+                                textAlign = TextAlign.Center
+                            )
                         }
                     }
                 }
             }
 
-            item {
-                Text(
-                    "共 ${filteredStyles.size} 款",
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f),
-                    fontSize = 13.sp
-                )
-            }
-
-            if (filteredStyles.isEmpty()) {
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
                 item {
-                    EmptyState("没有匹配款式", "换个分类，或在高级筛选里放宽价格、甲型和场景条件。")
+                    SectionHeader("全部款式", "下拉刷新即可更新最新款式与展示图片")
                 }
-            } else {
-                items(filteredStyles) { style ->
-                    StyleGridRow(style = style, onClick = { onStyleClick(style.id) })
+                item {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Text("款式库", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                                    Text(
+                                        "当前分类: $selectedCategory",
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.64f),
+                                        fontSize = 13.sp
+                                    )
+                                }
+                                OutlinedButton(onClick = { showAdvanced = !showAdvanced }) {
+                                    Text(if (showAdvanced) "收起筛选" else "高级筛选")
+                                }
+                            }
+                            if (showAdvanced) {
+                                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    LibraryFilterGroup("适合甲型", nailTypes, selectedNailType) { selectedNailType = it }
+                                    LibraryFilterGroup("适合肤色", skinTones, selectedSkinTone) { selectedSkinTone = it }
+                                    LibraryFilterGroup("场景风格", scenes, selectedScene) { selectedScene = it }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                item {
+                    Text(
+                        "共 ${filteredStyles.size} 款",
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f),
+                        fontSize = 13.sp
+                    )
+                }
+
+                if (filteredStyles.isEmpty()) {
+                    item {
+                        EmptyState("没有匹配款式", "换个分类，或在高级筛选里放宽甲型和场景条件。")
+                    }
+                } else {
+                    items(filteredStyles) { style ->
+                        StyleGridRow(style = style, onClick = { onStyleClick(style.id) })
+                    }
                 }
             }
         }
@@ -1560,6 +1818,10 @@ private fun TryOnHubScreen(
 
 @Composable
 private fun BookingScreen(stores: List<Store>, onStoreClick: (String) -> Unit) {
+    if (stores.isEmpty()) {
+        EmptyState("暂无可预约门店", "接入真实门店数据后，这里会展示支持预约的门店与时段。")
+        return
+    }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(20.dp),
@@ -1576,8 +1838,9 @@ private fun BookingScreen(stores: List<Store>, onStoreClick: (String) -> Unit) {
 private fun ProfileScreen(
     user: AuthUser,
     favoritesCount: Int,
-    preferenceSummary: String,
+    tryOnHistoryCount: Int,
     onFavorites: () -> Unit,
+    onTryOnHistory: () -> Unit,
     onRecords: () -> Unit,
     onSettings: () -> Unit
 ) {
@@ -1594,7 +1857,6 @@ private fun ProfileScreen(
                 Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(user.name, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                     Text(user.email, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
-                    Text("偏好: ${preferenceSummary.ifBlank { "显白法式 / 新中式 / 短甲友好" }}", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
                 }
             }
         }
@@ -1602,10 +1864,10 @@ private fun ProfileScreen(
             ProfileEntry("收藏", "已保存 $favoritesCount 个试戴相关款式", onFavorites)
         }
         item {
-            ProfileEntry("预约记录", "查看到店时间、门店和订单状态", onRecords)
+            ProfileEntry("试戴记录", "共有 $tryOnHistoryCount 条记录，生成完成后可随时回看", onTryOnHistory)
         }
         item {
-            ProfileEntry("我的评价", "最近完成的服务评价与晒图", {})
+            ProfileEntry("预约记录", "查看到店时间、门店和订单状态", onRecords)
         }
         item {
             ProfileEntry("设置", "通知、隐私与偏好设置", onSettings)
@@ -1653,15 +1915,6 @@ private fun StyleDetailScreen(
                 Text(style.name, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                 TagRow(style.tags)
             }
-        }
-        item {
-            DetailMetricCard(
-                entries = listOf(
-                    "参考价格" to style.price,
-                    "适合甲长" to "短中",
-                    "热度" to "1.2k"
-                )
-            )
         }
         item {
             DetailTextSection(
@@ -1926,13 +2179,15 @@ private fun TryOnUploadScreen(
         verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
         item {
-            CompactActionCard(
-                title = style.name,
-                subtitle = if (fromFavorites) "来自我的收藏，试戴效果会一并保存。" else "当前选择的试戴款式。",
-                primary = "开始识别",
-                secondary = null,
-                onPrimary = ::openCamera
-            )
+            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(style.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        if (fromFavorites) "来自我的收藏，试戴效果会一并保存。" else "当前选择的试戴款式。",
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    )
+                }
+            }
         }
         item {
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
@@ -1954,7 +2209,13 @@ private fun TryOnUploadScreen(
 }
 
 @Composable
-private fun TryOnProcessingScreen(stage: String, progress: Int, errorMessage: String?, onDone: () -> Unit) {
+private fun TryOnProcessingScreen(
+    stage: String,
+    progress: Int,
+    errorMessage: String?,
+    onDone: () -> Unit,
+    onLeave: () -> Unit
+) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -1968,13 +2229,21 @@ private fun TryOnProcessingScreen(stage: String, progress: Int, errorMessage: St
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 CircularProgressIndicator()
-                Text("正在识别手部与甲床", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                Text("当前阶段: ${stageLabel(stage)} · $progress%", textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f))
+                Text("正在生成你的试戴效果", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text("当前进度: ${stageLabel(stage)} · $progress%", textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f))
+                Text(
+                    "你可以先去浏览其他款式，结果生成后会保存在试戴记录里。",
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    fontSize = 13.sp
+                )
                 errorMessage?.takeIf { it.isNotBlank() }?.let {
                     Text(it, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.error)
                 }
                 if (progress >= 100 && errorMessage.isNullOrBlank()) {
                     Button(onClick = onDone) { Text("查看试戴结果") }
+                } else {
+                    OutlinedButton(onClick = onLeave) { Text("先去逛逛，稍后查看") }
                 }
             }
         }
@@ -1985,18 +2254,14 @@ private fun TryOnProcessingScreen(stage: String, progress: Int, errorMessage: St
 private fun TryOnResultScreen(
     style: NailStyle,
     favorite: Boolean,
-    length: String,
-    shape: String,
     resultStatus: String,
     resultBitmap: Bitmap?,
-    onLengthChange: (String) -> Unit,
-    onShapeChange: (String) -> Unit,
+    onOpenStyle: () -> Unit,
     onRetake: () -> Unit,
     onToggleFavorite: () -> Unit,
-    onBook: () -> Unit
+    onBook: () -> Unit,
+    onSaveImage: () -> Unit
 ) {
-    val lengths = listOf("自然短甲", "中短", "修长")
-    val shapes = listOf("方圆", "椭圆", "杏仁")
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(20.dp),
@@ -2009,13 +2274,18 @@ private fun TryOnResultScreen(
             Text(style.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         }
         item {
-            Text("任务状态: ${resultStatus.ifBlank { "completed" }}", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f))
+            Text(
+                if (resultStatus == "completed" || resultStatus.isBlank()) "试戴图已生成，可查看上手效果并决定是否预约同款。" else "试戴结果暂不可用，请重新上传手部照片后再试。",
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f)
+            )
         }
         item {
-            SelectorGroup("长度切换", lengths, length, onLengthChange)
-        }
-        item {
-            SelectorGroup("甲型切换", shapes, shape, onShapeChange)
+            OutlinedButton(
+                onClick = onOpenStyle,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("查看款式详情")
+            }
         }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -2026,15 +2296,124 @@ private fun TryOnResultScreen(
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Button(onClick = onBook, modifier = Modifier.weight(1f)) { Text("预约同款") }
-                OutlinedButton(onClick = {}, modifier = Modifier.weight(1f)) { Text("保存图片") }
+                OutlinedButton(
+                    onClick = onSaveImage,
+                    modifier = Modifier.weight(1f),
+                    enabled = resultBitmap != null
+                ) { Text("保存图片") }
             }
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TryOnHistoryScreen(
+    items: List<TryOnHistoryItemDto>,
+    styles: List<NailStyle>,
+    refreshing: Boolean,
+    onRefresh: () -> Unit,
+    onOpenResult: (TryOnHistoryItemDto) -> Unit,
+    onTryAgain: (String) -> Unit
+) {
+    if (items.isEmpty()) {
+        EmptyState("还没有试戴记录", "上传一张手部照片后，生成过的效果图都会保存在这里。")
+        return
+    }
+    PullToRefreshBox(isRefreshing = refreshing, onRefresh = onRefresh, modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(20.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            items(items) { item ->
+                val isPending = item.source == "pending" || item.resultUrl.isBlank()
+                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Box(
+                                modifier = Modifier
+                                    .size(92.dp)
+                                    .clip(MaterialTheme.shapes.medium)
+                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                            ) {
+                                SubcomposeAsyncImage(
+                                    model = item.resultUrl.takeIf { it.isNotBlank() },
+                                    contentDescription = item.styleName,
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop
+                                ) {
+                                    when (painter.state) {
+                                        is AsyncImagePainter.State.Success -> SubcomposeAsyncImageContent()
+                                        else -> Column(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .padding(10.dp),
+                                            verticalArrangement = Arrangement.Center,
+                                            horizontalAlignment = Alignment.CenterHorizontally
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Rounded.AutoAwesome,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                                                modifier = Modifier.size(24.dp)
+                                            )
+                                            Spacer(Modifier.height(6.dp))
+                                            Text(
+                                                text = if (isPending) "生成中" else "结果待查看",
+                                                fontSize = 11.sp,
+                                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                                                textAlign = TextAlign.Center
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text(item.styleName, fontWeight = FontWeight.SemiBold)
+                                Text(
+                                    if (isPending) "试戴结果生成中" else "最近一次试戴结果",
+                                    fontSize = 13.sp,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.68f)
+                                )
+                                Text(
+                                    item.createdAt.take(16).replace('T', ' '),
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.52f)
+                                )
+                            }
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            OutlinedButton(
+                                onClick = { onOpenResult(item) },
+                                modifier = Modifier.weight(1f),
+                                enabled = !isPending
+                            ) {
+                                Text("查看结果")
+                            }
+                            Button(onClick = { onTryAgain(item.styleId) }, modifier = Modifier.weight(1f)) {
+                                Text("再次试戴")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FavoritesScreen(
     styles: List<NailStyle>,
+    refreshing: Boolean,
+    onRefresh: () -> Unit,
     onStyleClick: (String) -> Unit,
     onRetake: (String) -> Unit,
     onBook: (String) -> Unit
@@ -2043,25 +2422,27 @@ private fun FavoritesScreen(
         EmptyState("还没有收藏", "在款式详情页或试戴结果页收藏喜欢的款式。")
         return
     }
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(20.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
-        items(styles) { style ->
-            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        GradientThumb(style = style, modifier = Modifier.size(88.dp))
-                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text(style.name, fontWeight = FontWeight.SemiBold)
-                            Text("保留试戴效果、甲型与甲长偏好", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f), fontSize = 13.sp)
+    PullToRefreshBox(isRefreshing = refreshing, onRefresh = onRefresh, modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(20.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            items(styles) { style ->
+                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            GradientThumb(style = style, modifier = Modifier.size(88.dp))
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text(style.name, fontWeight = FontWeight.SemiBold)
+                                Text("收藏的款式会保存在这里，方便你再次试戴或预约。", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f), fontSize = 13.sp)
+                            }
                         }
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        OutlinedButton(onClick = { onStyleClick(style.id) }, modifier = Modifier.weight(1f)) { Text("查看详情") }
-                        OutlinedButton(onClick = { onRetake(style.id) }, modifier = Modifier.weight(1f)) { Text("再次试戴") }
-                        Button(onClick = { onBook(style.id) }, modifier = Modifier.weight(1f)) { Text("预约") }
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            OutlinedButton(onClick = { onStyleClick(style.id) }, modifier = Modifier.weight(1f)) { Text("查看详情") }
+                            OutlinedButton(onClick = { onRetake(style.id) }, modifier = Modifier.weight(1f)) { Text("再次试戴") }
+                            Button(onClick = { onBook(style.id) }, modifier = Modifier.weight(1f)) { Text("预约") }
+                        }
                     }
                 }
             }
@@ -2080,7 +2461,7 @@ private fun StoreDetailScreen(store: Store, onBook: () -> Unit) {
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(store.name, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                    Text("${store.distance} · ${store.priceBand} · 评分 ${store.score}")
+                    Text("${store.distance} · 评分 ${store.score}")
                     TagRow(store.slots)
                 }
             }
@@ -2088,10 +2469,9 @@ private fun StoreDetailScreen(store: Store, onBook: () -> Unit) {
         item {
             InfoGrid(
                 listOf(
-                    "营业时间" to "10:00 - 22:00",
-                    "美甲师" to "6 位可预约",
-                    "门店作品" to "480+",
-                    "服务价格" to store.priceBand
+                    "营业时间" to store.openHours,
+                    "美甲师" to "${store.artists} 位可预约",
+                    "门店作品" to store.works
                 )
             )
         }
@@ -2111,9 +2491,9 @@ private fun BookingFormScreen(
     onStoreChange: (String) -> Unit,
     onSubmit: (String, String, String, String) -> Unit
 ) {
-    var name by remember { mutableStateOf("Luna") }
-    var phone by remember { mutableStateOf("13800138000") }
-    var note by remember { mutableStateOf("想保留原甲长度，希望颜色更浅。") }
+    var name by remember { mutableStateOf("") }
+    var phone by remember { mutableStateOf("") }
+    var note by remember { mutableStateOf("") }
     val selectedSlot = store.slots.first()
 
     LazyColumn(
@@ -2160,14 +2540,13 @@ private fun BookingConfirmScreen(booking: BookingDto, loading: Boolean, errorMes
         contentPadding = PaddingValues(20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        item { SectionHeader("确认订单", "请确认到店时间、门店和价格") }
+        item { SectionHeader("确认订单", "请确认到店时间与门店信息") }
         item {
             InfoGrid(
                 listOf(
                     "款式" to booking.styleName,
                     "门店" to booking.storeName,
-                    "时间" to booking.slot,
-                    "预计价格" to booking.price
+                    "时间" to booking.slot
                 )
             )
         }
@@ -2207,26 +2586,33 @@ private fun BookingSuccessScreen(booking: BookingDto, onRecords: () -> Unit, onB
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun BookingRecordsScreen(records: List<BookingRecord>) {
+private fun BookingRecordsScreen(
+    records: List<BookingRecord>,
+    refreshing: Boolean,
+    onRefresh: () -> Unit
+) {
     if (records.isEmpty()) {
         EmptyState("暂无预约记录", "完成预约后，这里会展示到店时间、门店和状态。")
         return
     }
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(20.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
-        items(records) { record ->
-            CompactActionCard(
-                title = "${record.status} | ${record.slot}",
-                subtitle = "${record.storeName} · ${record.styleName}",
-                primary = "查看门店",
-                secondary = "再次预约",
-                onPrimary = {},
-                onSecondary = {}
-            )
+    PullToRefreshBox(isRefreshing = refreshing, onRefresh = onRefresh, modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(20.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            items(records) { record ->
+                CompactActionCard(
+                    title = "${record.status} | ${record.slot}",
+                    subtitle = "${record.storeName} · ${record.styleName}",
+                    primary = "查看门店",
+                    secondary = "再次预约",
+                    onPrimary = {},
+                    onSecondary = {}
+                )
+            }
         }
     }
 }
@@ -2351,7 +2737,6 @@ private fun StyleCard(style: NailStyle, onClick: () -> Unit, modifier: Modifier 
             GradientThumb(style = style, modifier = Modifier.fillMaxWidth().aspectRatio(0.88f))
             Text(style.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(style.vibe, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f), fontSize = 13.sp, maxLines = 2)
-            Text(style.price, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -2507,7 +2892,7 @@ private fun StoreCard(store: Store, onClick: () -> Unit) {
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
                     Text(store.name, fontWeight = FontWeight.SemiBold)
-                    Text("${store.distance} · ${store.priceBand}", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+                    Text(store.distance, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
                 }
                 Text(store.score, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
             }
@@ -2543,17 +2928,44 @@ private fun GradientThumb(style: NailStyle, modifier: Modifier = Modifier) {
             .background(Brush.linearGradient(style.colors))
             .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.45f), MaterialTheme.shapes.medium)
     ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val stroke = size.minDimension / 7f
-            repeat(5) { index ->
-                val step = size.width / 6
-                drawLine(
-                    color = Color.White.copy(alpha = 0.24f + index * 0.05f),
-                    start = Offset(step * (index + 1), size.height * 0.18f),
-                    end = Offset(step * (index + 1), size.height * 0.82f),
-                    strokeWidth = stroke,
-                    cap = StrokeCap.Round
-                )
+        val imageUrl = style.imageUrl
+        if (!imageUrl.isNullOrBlank()) {
+            SubcomposeAsyncImage(
+                model = imageUrl,
+                contentDescription = style.name,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            ) {
+                when (painter.state) {
+                    is AsyncImagePainter.State.Success -> SubcomposeAsyncImageContent()
+                    else -> Canvas(modifier = Modifier.fillMaxSize()) {
+                        val stroke = size.minDimension / 7f
+                        repeat(5) { index ->
+                            val step = size.width / 6
+                            drawLine(
+                                color = Color.White.copy(alpha = 0.24f + index * 0.05f),
+                                start = Offset(step * (index + 1), size.height * 0.18f),
+                                end = Offset(step * (index + 1), size.height * 0.82f),
+                                strokeWidth = stroke,
+                                cap = StrokeCap.Round
+                            )
+                        }
+                    }
+                }
+            }
+        } else {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val stroke = size.minDimension / 7f
+                repeat(5) { index ->
+                    val step = size.width / 6
+                    drawLine(
+                        color = Color.White.copy(alpha = 0.24f + index * 0.05f),
+                        start = Offset(step * (index + 1), size.height * 0.18f),
+                        end = Offset(step * (index + 1), size.height * 0.82f),
+                        strokeWidth = stroke,
+                        cap = StrokeCap.Round
+                    )
+                }
             }
         }
     }
@@ -2578,59 +2990,34 @@ private fun ResultCanvas(style: NailStyle, resultBitmap: Bitmap?) {
                         .clip(MaterialTheme.shapes.large)
                 )
             } else {
-                Canvas(modifier = Modifier.fillMaxSize()) {
-                    drawRoundRect(
-                        brush = Brush.verticalGradient(listOf(Color(0xFFFFF4F6), Color(0xFFF3E0E8))),
-                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(42f, 42f)
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(MaterialTheme.shapes.large)
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
+                        .padding(24.dp),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.AutoAwesome,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                        modifier = Modifier.size(30.dp)
                     )
-                    val xPositions = listOf(0.18f, 0.34f, 0.5f, 0.66f, 0.82f)
-                    xPositions.forEachIndexed { index, x ->
-                        drawLine(
-                            color = Color(0xFFE0B3C3),
-                            start = Offset(size.width * x, size.height * 0.22f),
-                            end = Offset(size.width * x, size.height * 0.84f),
-                            strokeWidth = size.width * 0.09f,
-                            cap = StrokeCap.Round
-                        )
-                        drawLine(
-                            brush = Brush.verticalGradient(style.colors),
-                            start = Offset(size.width * x, size.height * 0.18f),
-                            end = Offset(size.width * x, size.height * 0.4f),
-                            strokeWidth = size.width * 0.11f,
-                            cap = StrokeCap.Round
-                        )
-                        if (index < 4) {
-                            drawCircle(
-                                color = Color.White.copy(alpha = 0.22f),
-                                radius = size.width * 0.05f,
-                                center = Offset(size.width * x, size.height * 0.16f)
-                            )
-                        }
-                    }
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        text = "试戴图生成后会显示在这里",
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f),
+                        textAlign = TextAlign.Center
+                    )
                 }
             }
             Text(
-                if (resultBitmap != null) "AI 试戴结果" else "AI 试戴预览",
+                if (resultBitmap != null) "AI 试戴结果" else "等待试戴结果",
                 modifier = Modifier.align(Alignment.BottomCenter),
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f)
             )
-        }
-    }
-}
-
-@Composable
-private fun SelectorGroup(
-    title: String,
-    options: List<String>,
-    selected: String,
-    onSelect: (String) -> Unit
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
-            options.forEach { option ->
-                FilterChip(selected = selected == option, onClick = { onSelect(option) }, label = { Text(option) })
-            }
         }
     }
 }

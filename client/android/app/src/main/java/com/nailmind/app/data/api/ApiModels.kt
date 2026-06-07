@@ -1,5 +1,7 @@
 package com.nailmind.app.data.api
 
+import com.nailmind.app.data.config.AppConfig
+
 data class AuthRequest(
     val email: String,
     val password: String
@@ -60,7 +62,9 @@ data class StyleDto(
     val nailType: String,
     val skinTone: String,
     val tags: List<String>,
-    val colors: List<String>
+    val colors: List<String>,
+    val imageUrl: String? = null,
+    val tryOnStyleId: Int? = null
 )
 
 data class StylesResponse(
@@ -86,8 +90,72 @@ data class FavoriteToggleResponse(
 )
 
 data class TryOnUploadResponse(
+    val hand_id: String,
+    val image_url: String? = null,
+    val db_id: Int,
+    val message: String? = null
+)
+
+data class LegacyTryOnUploadResponse(
     val objectKey: String,
     val fileName: String? = null
+)
+
+data class HandImageDto(
+    val id: String,
+    val dbId: Int,
+    val imageUrl: String,
+    val sourceType: String,
+    val skinTone: String,
+    val handType: String
+)
+
+data class HandImagesResponse(
+    val hands: List<HandImageDto>,
+    val total: Int
+)
+
+data class SyncTryOnRequest(
+    val handId: String? = null,
+    val handImageId: Int? = null,
+    val styleId: Int,
+    val selectedLength: String = "natural_short",
+    val selectedShape: String = "squoval"
+)
+
+data class SyncTryOnResponse(
+    val result_url: String,
+    val duration_ms: Int,
+    val style_name: String,
+    val source: String
+)
+
+data class TryOnHistoryItemDto(
+    val id: String,
+    val jobId: String? = null,
+    val resultUrl: String,
+    val durationMs: Int,
+    val styleName: String,
+    val styleId: String,
+    val source: String,
+    val selectedLength: String,
+    val selectedShape: String,
+    val createdAt: String
+)
+
+fun StyleDto.normalized(): StyleDto = copy(imageUrl = AppConfig.normalizeMediaUrl(imageUrl))
+
+fun HandImageDto.normalized(): HandImageDto = copy(imageUrl = AppConfig.normalizeMediaUrl(imageUrl).orEmpty())
+
+fun SyncTryOnResponse.normalized(): SyncTryOnResponse = copy(result_url = AppConfig.normalizeMediaUrl(result_url).orEmpty())
+
+fun TryOnHistoryItemDto.normalized(): TryOnHistoryItemDto = copy(
+    resultUrl = AppConfig.normalizeTryOnPreviewUrl(resultUrl, jobId).orEmpty()
+)
+
+data class TryOnHistoryResponse(
+    val items: List<TryOnHistoryItemDto>,
+    val total: Int
 )
 
 data class CreateTryOnJobRequest(
@@ -125,6 +193,10 @@ data class TryOnJobDto(
     val updatedAt: String,
     val completedAt: String? = null,
     val resultImageUrl: String? = null
+)
+
+fun TryOnJobDto.normalized(): TryOnJobDto = copy(
+    resultImageUrl = AppConfig.normalizeMediaUrl(resultImageUrl)
 )
 
 data class StoreDto(

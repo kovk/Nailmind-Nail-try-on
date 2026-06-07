@@ -3,49 +3,80 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Nail Mind Admin</title>
+    <title>Nail Mind Workspace</title>
     <link rel="stylesheet" href="/admin/static/styles.css" />
   </head>
   <body>
-    <div class="shell">
-      <aside class="sidebar">
-        <div class="brand">
-          <span class="eyebrow">Nail Mind</span>
-          <h1>运营后台</h1>
+    <div class="backdrop"></div>
+    <section id="auth-screen" class="auth-screen">
+      <div class="auth-shell">
+        <div class="auth-copy">
+          <p class="eyebrow">Nail Mind Workspace</p>
+          <h1>把运营决策和门店履约放进同一套真实数据工作流</h1>
+          <p class="lead">
+            运营端负责款式资产、上架节奏、趋势建议与真实埋点复盘。商家端只处理商品、预约、申请与门店营业状态。
+          </p>
+          <div class="auth-points">
+            <div class="surface compact">
+              <strong>运营端</strong>
+              <span>款式管理、上下架、图片替换、OpenClaw 建议预留、真实埋点复盘</span>
+            </div>
+            <div class="surface compact">
+              <strong>商家端</strong>
+              <span>商品库存、预约履约、门店档期、上架与下架申请</span>
+            </div>
+          </div>
         </div>
-        <div class="demo">
-          <p>运营账号：`operator@nailmind.app / 123456`</p>
-          <p>商家账号：`merchant@nailmind.app / 123456`</p>
-        </div>
-        <form id="login-form" class="panel">
+        <form id="login-form" class="surface auth-panel">
+          <p class="eyebrow">Sign In</p>
+          <h2>登录工作台</h2>
           <label>
-            邮箱
-            <input id="email" type="email" value="operator@nailmind.app" />
+            企业邮箱
+            <input id="email" type="email" placeholder="name@company.com" autocomplete="username" />
           </label>
           <label>
             密码
-            <input id="password" type="password" value="123456" />
+            <input id="password" type="password" placeholder="请输入密码" autocomplete="current-password" />
           </label>
-          <button type="submit">登录后台</button>
+          <button type="submit" class="primary-button">进入工作台</button>
+          <p id="auth-error" class="error-text hidden"></p>
         </form>
-        <nav id="nav" class="nav hidden">
-          <button data-view="overview">概览</button>
-          <button data-view="styles">款式</button>
-          <button data-view="trends">趋势建议</button>
-          <button data-view="requests">商家申请</button>
-          <button data-view="merchant">商家视角</button>
-          <button id="logout" type="button">退出</button>
-        </nav>
+      </div>
+    </section>
+
+    <section id="workspace" class="workspace hidden">
+      <aside class="rail">
+        <div class="rail-top">
+          <p class="eyebrow">Nail Mind</p>
+          <h2 id="workspace-title">运营工作台</h2>
+          <p id="workspace-subtitle" class="muted">基于真实业务数据运行</p>
+        </div>
+        <div class="surface user-card">
+          <p id="user-name" class="user-name">-</p>
+          <p id="user-meta" class="muted">-</p>
+          <span id="role-chip" class="role-chip">未登录</span>
+        </div>
+        <div class="surface rail-note">
+          <strong>当前原则</strong>
+          <p id="role-note" class="muted">登录后根据账号角色切换到对应工作台。</p>
+        </div>
+        <button id="logout" type="button" class="ghost-button rail-logout">退出登录</button>
       </aside>
-      <main class="content">
-        <section class="hero">
-          <p class="eyebrow">One Portal / Role Based</p>
-          <h2>运营端和商家端已合并为一套后台</h2>
-          <p id="whoami">未登录</p>
-        </section>
-        <section id="view" class="grid"></section>
+
+      <main class="workspace-main">
+        <header class="topbar">
+          <div>
+            <p id="page-kicker" class="eyebrow">Workspace</p>
+            <h1 id="page-title">工作台</h1>
+            <p id="page-description" class="lead compact">请先登录。</p>
+          </div>
+        </header>
+
+        <nav id="tabs" class="tabs"></nav>
+        <section id="view" class="view-shell"></section>
       </main>
-    </div>
+    </section>
+
     <script src="/admin/static/app.js"></script>
   </body>
 </html>

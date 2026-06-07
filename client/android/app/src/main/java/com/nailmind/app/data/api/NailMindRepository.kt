@@ -4,6 +4,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
 import java.io.File
+import com.nailmind.app.data.config.AppConfig
 
 class NailMindRepository(
     private val service: NailMindApiService = NailMindApiClient.service
@@ -40,27 +41,80 @@ class NailMindRepository(
         )
     )
 
-    suspend fun home(): HomeResponse = service.home()
+    suspend fun home(): HomeResponse = service.home().let { response ->
+        response.copy(
+            recommended = response.recommended.map { it.normalized() },
+            hot = response.hot.map { it.normalized() },
+        )
+    }
 
-    suspend fun styles(tag: String? = null): StylesResponse = service.styles(tag)
+    suspend fun styles(tag: String? = null): StylesResponse = service.styles(tag).let { response ->
+        response.copy(items = response.items.map { it.normalized() })
+    }
 
-    suspend fun searchStyles(query: String): SearchResponse = service.searchStyles(query)
+    suspend fun searchStyles(query: String): SearchResponse = service.searchStyles(query).let { response ->
+        response.copy(items = response.items.map { it.normalized() })
+    }
 
-    suspend fun styleDetail(styleId: String): StyleDetailResponse = service.styleDetail(styleId)
+    suspend fun styleDetail(styleId: String): StyleDetailResponse = service.styleDetail(styleId).let { response ->
+        response.copy(style = response.style.normalized())
+    }
 
-    suspend fun favorites(): StylesResponse = service.favorites()
+    suspend fun favorites(): StylesResponse = service.favorites().let { response ->
+        response.copy(items = response.items.map { it.normalized() })
+    }
 
     suspend fun setFavorite(styleId: String, favorited: Boolean): FavoriteToggleResponse {
         return if (favorited) service.addFavorite(styleId) else service.removeFavorite(styleId)
     }
 
-    suspend fun uploadTryOnImage(file: File): TryOnUploadResponse {
+    suspend fun uploadHandImage(file: File): TryOnUploadResponse {
+        val requestBody = file.asRequestBody("image/*".toMediaType())
+        val part = MultipartBody.Part.createFormData("file", file.name, requestBody)
+        return service.uploadHandImage(part)
+    }
+
+    suspend fun handImages(): HandImagesResponse = service.handImages().let { response ->
+        response.copy(hands = response.hands.map { it.normalized() })
+    }
+
+    suspend fun syncTryOn(
+        handId: String? = null,
+        handImageId: Int? = null,
+        styleId: Int,
+        selectedLength: String,
+        selectedShape: String
+    ): SyncTryOnResponse = service.syncTryOn(
+        SyncTryOnRequest(
+            handId = handId,
+            handImageId = handImageId,
+            styleId = styleId,
+            selectedLength = selectedLength,
+            selectedShape = selectedShape
+        )
+    ).normalized()
+
+    suspend fun tryOnHistory(): TryOnHistoryResponse = service.tryOnHistory().let { response ->
+        response.copy(items = response.items.map { it.normalized() })
+    }
+
+    suspend fun resultImageBytesByUrl(url: String): ByteArray {
+        val response = service.resultImageByUrl(AppConfig.normalizeMediaUrl(url) ?: url)
+        if (!response.isSuccessful) {
+            error("加载试戴结果失败: HTTP ${response.code()}")
+        }
+        return response.body()?.bytes() ?: error("试戴结果为空")
+    }
+
+    suspend fun uploadAsyncTryOnImage(file: File): LegacyTryOnUploadResponse {
         val requestBody = file.asRequestBody("image/*".toMediaType())
         val part = MultipartBody.Part.createFormData("file", file.name, requestBody)
         return service.uploadTryOnImage(part)
     }
 
-    suspend fun tryOnJobs(): TryOnJobsResponse = service.tryOnJobs()
+    suspend fun tryOnJobs(): TryOnJobsResponse = service.tryOnJobs().let { response ->
+        response.copy(items = response.items.map { it.normalized() })
+    }
 
     suspend fun createTryOnJob(
         styleId: String,
@@ -74,14 +128,17 @@ class NailMindRepository(
             selectedLength = selectedLength,
             selectedShape = selectedShape
         )
-    )
+    ).normalized()
 
-    suspend fun tryOnJob(jobId: String): TryOnJobDto = service.tryOnJob(jobId)
+    suspend fun tryOnJob(jobId: String): TryOnJobDto = service.tryOnJob(jobId).normalized()
 
-    suspend fun tryOnResult(jobId: String): TryOnJobDto = service.tryOnResult(jobId)
+    suspend fun tryOnResult(jobId: String): TryOnJobDto = service.tryOnResult(jobId).normalized()
 
     suspend fun rerenderTryOn(jobId: String, selectedLength: String?, selectedShape: String?): TryOnJobDto =
-        service.rerenderTryOn(jobId, RerenderTryOnJobRequest(selectedLength = selectedLength, selectedShape = selectedShape))
+        service.rerenderTryOn(
+            jobId,
+            RerenderTryOnJobRequest(selectedLength = selectedLength, selectedShape = selectedShape)
+        ).normalized()
 
     suspend fun tryOnResultImageBytes(jobId: String): ByteArray {
         val response = service.resultImage(jobId)

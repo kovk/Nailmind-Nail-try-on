@@ -10,6 +10,10 @@ from pathlib import Path
 
 from PIL import Image
 
+ROOT_DIR = Path(__file__).resolve().parents[1]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
 
 class NailMindAPITestCase(unittest.TestCase):
     @classmethod
@@ -142,6 +146,65 @@ class NailMindAPITestCase(unittest.TestCase):
         self.assertEqual(image_response.status_code, 200)
         self.assertEqual(image_response.headers["content-type"], "image/png")
 
+    def test_sync_tryon_flow_and_history(self):
+        token = self.register_user()
+        headers = self.auth_header(token)
+
+        upload_response = self.client.post(
+            "/api/tryon/upload-hand",
+            headers=headers,
+            files={"file": ("hand-sync.png", self.make_image_bytes(), "image/png")},
+        )
+        self.assertEqual(upload_response.status_code, 200)
+        hand_payload = upload_response.json()
+        self.assertIn("hand_id", hand_payload)
+
+        style_list_response = self.client.get("/api/styles", headers=headers)
+        self.assertEqual(style_list_response.status_code, 200)
+        first_style = style_list_response.json()["items"][0]
+        self.assertIn("tryOnStyleId", first_style)
+        self.assertIsNotNone(first_style["tryOnStyleId"])
+
+        from app.database import SessionLocal
+        from app.models import NailStyleAsset
+
+        style_image_path = Path(self.temp_dir) / "style-sync.png"
+        style_image_path.write_bytes(self.make_image_bytes())
+        with SessionLocal() as db:
+            asset = db.get(NailStyleAsset, first_style["tryOnStyleId"])
+            asset.local_image_path = str(style_image_path)
+            db.add(asset)
+            db.commit()
+
+        cached_result_path = Path(self.temp_dir) / "results" / f"{hand_payload['hand_id']}+style_01+natural_short+squoval.png"
+        cached_result_path.parent.mkdir(parents=True, exist_ok=True)
+        cached_result_path.write_bytes(self.make_image_bytes())
+
+        sync_response = self.client.post(
+            "/api/tryon/try-on",
+            headers=headers,
+            json={
+                "handId": hand_payload["hand_id"],
+                "styleId": first_style["tryOnStyleId"],
+                "selectedLength": "natural_short",
+                "selectedShape": "squoval",
+            },
+        )
+        self.assertEqual(sync_response.status_code, 200)
+        sync_json = sync_response.json()
+        self.assertEqual(sync_json["source"], "bailian-cached")
+        self.assertIn("/files/results/", sync_json["result_url"])
+
+        result_image_response = self.client.get(sync_json["result_url"], headers=headers)
+        self.assertEqual(result_image_response.status_code, 200)
+        self.assertEqual(result_image_response.headers["content-type"], "image/png")
+
+        history_response = self.client.get("/api/tryon/history", headers=headers)
+        self.assertEqual(history_response.status_code, 200)
+        history_json = history_response.json()
+        self.assertGreaterEqual(history_json["total"], 1)
+        self.assertEqual(history_json["items"][0]["styleId"], first_style["id"])
+
     def test_client_facing_api_surface(self):
         token = self.register_user()
         headers = self.auth_header(token)
@@ -158,6 +221,8 @@ class NailMindAPITestCase(unittest.TestCase):
         self.assertEqual(styles_response.status_code, 200)
         styles_items = styles_response.json()["items"]
         self.assertGreaterEqual(len(styles_items), 2)
+        self.assertIn("imageUrl", styles_items[0])
+        self.assertIn("tryOnStyleId", styles_items[0])
         style_id = styles_items[0]["id"]
 
         filtered_styles_response = self.client.get("/api/styles", params={"tag": "法式"}, headers=headers)

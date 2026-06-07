@@ -12,12 +12,14 @@ class Settings(BaseSettings):
     data_dir: str = "/app/data"
     public_base_url: str = "http://localhost:8080"
     allowed_origins: str = "*"
-    demo_email: str = "luna@nailmind.app"
-    demo_password: str = "123456"
     jwt_secret: str = "replace-with-a-long-random-secret"
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 10080
     worker_token: str = "replace-with-a-long-random-worker-token"
+    dashscope_api_key: str = ""
+    openclaw_api_key: str = ""
+    openclaw_base_url: str = ""
+    openclaw_model: str = "mimo-v2.5-pro"
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", case_sensitive=False)
 
@@ -28,6 +30,22 @@ class Settings(BaseSettings):
     @property
     def results_dir(self) -> Path:
         return Path(self.data_dir) / "results"
+
+    @property
+    def static_dir(self) -> Path:
+        return Path(self.data_dir) / "static"
+
+    @property
+    def static_styles_dir(self) -> Path:
+        return self.static_dir / "styles"
+
+    @property
+    def static_hands_dir(self) -> Path:
+        return self.static_dir / "hands"
+
+    @property
+    def logs_dir(self) -> Path:
+        return Path(self.data_dir) / "logs"
 
     @property
     def allowed_origins_list(self) -> list[str]:

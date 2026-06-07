@@ -10,7 +10,9 @@ client/android/.gradle/
 client/android/build/
 client/android/app/build/
 client/android/local.properties
+client/android/keystore/
 client/android/tools/aapt2/
+*.apk
 
 # Python
 __pycache__/
@@ -28,7 +30,11 @@ server/api/worker/__pycache__/
 # Local environment files
 .env
 server/api/.env
+server/api/.env.ai
 server/api/deploy/.env.remote
+server/trend_agent/.env.openclaw
+server/api/xhs-storage-state.json
+**/xhs-storage-state.json
 
 # Runtime data, models, and generated artifacts
 server/api/.cache/

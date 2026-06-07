@@ -69,6 +69,39 @@ class Style(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
+class NailStyleAsset(Base):
+    __tablename__ = "nail_style_assets"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    style_code: Mapped[str] = mapped_column(String(100), unique=True, index=True)
+    display_name: Mapped[str] = mapped_column(String(255))
+    sequence_no: Mapped[int] = mapped_column(Integer, unique=True, index=True)
+    original_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    enhanced_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    local_image_path: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    category: Mapped[str] = mapped_column(String(100), default="纯色")
+    color_tone: Mapped[str] = mapped_column(String(100), default="#F8C7D6")
+    tags_json: Mapped[str] = mapped_column(Text, default="[]")
+    price: Mapped[str] = mapped_column(String(50), default="￥198")
+    popularity: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class HandImage(Base):
+    __tablename__ = "hand_images"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    hand_code: Mapped[str] = mapped_column(String(100), unique=True, index=True)
+    image_url: Mapped[str] = mapped_column(Text)
+    local_path: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    source_type: Mapped[str] = mapped_column(String(50), default="preset", index=True)
+    skin_tone: Mapped[str] = mapped_column(String(100), default="auto")
+    hand_type: Mapped[str] = mapped_column(String(100), default="auto")
+    landmarks_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
 class Store(Base):
     __tablename__ = "stores"
 
@@ -161,6 +194,21 @@ class TryOnJob(Base):
     completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     user: Mapped[User] = relationship(back_populates="try_on_jobs")
+
+
+class TryOnRecord(Base):
+    __tablename__ = "try_on_records"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    hand_image_id: Mapped[int | None] = mapped_column(ForeignKey("hand_images.id", ondelete="SET NULL"), nullable=True, index=True)
+    nail_style_asset_id: Mapped[int] = mapped_column(ForeignKey("nail_style_assets.id", ondelete="CASCADE"), index=True)
+    result_url: Mapped[str] = mapped_column(String(512))
+    source: Mapped[str] = mapped_column(String(50), default="bailian-live")
+    duration_ms: Mapped[int] = mapped_column(Integer, default=0)
+    selected_length: Mapped[str] = mapped_column(String(100), default="natural_short")
+    selected_shape: Mapped[str] = mapped_column(String(100), default="squoval")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
 
 
 class StyleLifecycleRequest(Base):
