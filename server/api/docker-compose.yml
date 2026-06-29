@@ -18,18 +18,3 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
-
-  nailmind-tryon-worker:
-    build:
-      context: .
-      dockerfile: worker/Dockerfile
-    container_name: nailmind-tryon-worker
-    env_file:
-      - .env
-    depends_on:
-      nailmind-api:
-        condition: service_healthy
-    volumes:
-      - ./deploy/data:/app/data
-      - ./deploy/models:/models
-    restart: unless-stopped

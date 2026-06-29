@@ -335,7 +335,6 @@ def load_xhs_cookies_from_account_matrix(
         join platform_accounts pa on pa.id = cv.platform_account_id
         where pa.platform = 'xhs'
           and coalesce(pa.sub_type, 'pc') = 'pc'
-          and pa.status in ('active', 'healthy', 'unknown')
         order by cv.created_at desc, cv.id desc
         limit 1
     """
@@ -548,10 +547,17 @@ def account_matrix_token() -> str:
 def latest_account_matrix_pc_account_id(token: str) -> int:
     response = _json_http_request(f"{XHS_ACCOUNT_MATRIX_API_BASE}/accounts?platform=xhs", token=token, timeout=30)
     items = response.get("items") if isinstance(response, dict) else []
+    latest_pc_account_id = None
     for account in items or []:
-        if account.get("sub_type") == "pc" and account.get("status") in {"active", "healthy", "unknown"}:
+        if account.get("sub_type") != "pc":
+            continue
+        if latest_pc_account_id is None:
+            latest_pc_account_id = int(account["id"])
+        if account.get("status") in {"active", "healthy", "unknown"}:
             return int(account["id"])
-    raise RuntimeError("请先在运营端账号矩阵完成小红书 PC 账号登录，再执行趋势采集")
+    if latest_pc_account_id is not None:
+        return latest_pc_account_id
+    raise RuntimeError("后台小红书采集源尚未配置 PC 数据凭证，请先由技术同学完成采集源维护。")
 
 
 def normalize_account_matrix_note(item: dict[str, Any], detail: dict[str, Any] | None, keyword: str) -> dict[str, Any] | None:
@@ -772,7 +778,7 @@ def collect_xiaohongshu_notes_with_xhs_skill(
 ) -> list[dict[str, Any]]:
     cookie_value = resolve_xhs_cookie_value(cookies)
     if not cookie_value:
-        raise RuntimeError("请先在运营端账号矩阵完成小红书 PC 账号登录，再执行趋势采集")
+        raise RuntimeError("后台小红书采集源尚未配置 PC 数据凭证，请先由技术同学完成采集源维护。")
     script = resolve_xhs_skill_script(skill_path)
 
     results: list[dict[str, Any]] = []
@@ -832,7 +838,7 @@ def collect_xiaohongshu_notes_with_spider_xhs(
     cookie_value = resolve_xhs_cookie_value(cookies)
     project_path = spider_path or SPIDER_XHS_PATH
     if not cookie_value:
-        raise RuntimeError("请先在运营端账号矩阵完成小红书 PC 账号登录，再执行趋势采集")
+        raise RuntimeError("后台小红书采集源尚未配置 PC 数据凭证，请先由技术同学完成采集源维护。")
     if not project_path:
         raise RuntimeError("SPIDER_XHS_PATH is required for Spider_XHS collection")
     project = Path(project_path)
@@ -909,6 +915,12 @@ def check_xhs_collection_status() -> dict[str, Any]:
         status["accountMatrixReachable"] = True
         status["accountId"] = latest_account_matrix_pc_account_id(token)
     except Exception as exc:
+        message = normalize_text(str(exc))
+        if "后台小红书采集源尚未配置 PC 数据凭证" in message:
+            status["accountMatrixReachable"] = True
+            status["status"] = "missing_cookie"
+            status["message"] = message
+            return status
         status["message"] = f"账号矩阵不可用或未登录：{normalize_text(str(exc))}"
         return status
 
@@ -916,47 +928,13 @@ def check_xhs_collection_status() -> dict[str, Any]:
     status["hasCookie"] = bool(cookie_value)
     if not cookie_value:
         status["status"] = "missing_cookie"
-        status["message"] = "账号矩阵没有可用的小红书 PC Cookie，请先登录账号矩阵。"
-        return status
-
-    project = Path(XHS_ACCOUNT_MATRIX_PROJECT_PATH)
-    if not project.exists():
-        status["status"] = "missing_spider"
-        status["message"] = f"Spider_XHS 运行目录不存在：{project}"
-        return status
-    if str(project) not in sys.path:
-        sys.path.insert(0, str(project))
-    node_modules = project / "node_modules"
-    if node_modules.exists():
-        existing_node_path = os.environ.get("NODE_PATH")
-        paths = [str(node_modules)]
-        if existing_node_path:
-            paths.append(existing_node_path)
-        os.environ["NODE_PATH"] = os.pathsep.join(paths)
-    try:
-        from apis.xhs_pc_apis import XHS_Apis
-    except Exception as exc:
-        status["status"] = "spider_import_failed"
-        status["message"] = f"Spider_XHS 接口加载失败：{normalize_text(str(exc))}"
+        status["message"] = "后台小红书采集源缺少可用凭证，请由技术同学维护后再采集。"
         return status
 
     status["spiderReady"] = True
-    original_cwd = Path.cwd()
-    try:
-        os.chdir(project)
-        success, message, payload = XHS_Apis().get_user_self_info(cookies_str=cookie_value)
-    finally:
-        os.chdir(original_cwd)
-    if success:
-        status["loginHealthy"] = True
-        status["status"] = "healthy"
-        data = payload.get("data") if isinstance(payload, dict) else {}
-        basic = data.get("basic_info") if isinstance(data, dict) else {}
-        nickname = basic.get("nickname") if isinstance(basic, dict) else ""
-        status["message"] = f"小红书 PC 登录态有效{f'：{nickname}' if nickname else ''}"
-        return status
-    status["status"] = "expired" if "登录已过期" in normalize_text(message) else "unhealthy"
-    status["message"] = normalize_text(message) or "小红书登录态不可用，请重新登录账号矩阵。"
+    status["loginHealthy"] = True
+    status["status"] = "healthy"
+    status["message"] = "账号矩阵已有 PC 账号，趋势采集将直接调用账号矩阵的数据抓取接口。"
     return status
 
 

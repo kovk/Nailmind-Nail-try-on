@@ -37,6 +37,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -55,6 +56,7 @@ import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.BookmarkBorder
 import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.ChevronRight
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.Home
@@ -71,11 +73,11 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -157,10 +159,12 @@ private sealed interface Screen {
     data class StyleDetail(val styleId: String) : Screen
     data object Search : Screen
     data class SearchResult(val query: String) : Screen
+    data object Ranking : Screen
     data class TryOnUpload(val styleId: String, val fromFavorites: Boolean = false) : Screen
     data class TryOnProcessing(val styleId: String, val jobId: String) : Screen
     data class TryOnResult(val styleId: String, val jobId: String) : Screen
     data object TryOnHistory : Screen
+    data object DiyDesigner : Screen
     data object Favorites : Screen
     data object BookingRecords : Screen
     data class StoreDetail(val storeId: String, val styleId: String? = null) : Screen
@@ -187,6 +191,51 @@ private data class NailStyle(
     val tags: List<String>,
     val imageUrl: String? = null,
     val tryOnStyleId: Int? = null
+)
+
+private enum class StyleBrowseTab(val title: String) {
+    NailShape("甲型"),
+    Effect("效果"),
+    Vibe("风格")
+}
+
+private data class StyleBrowseOption(
+    val label: String,
+    val keywords: List<String>
+)
+
+private val nailShapeBrowseOptions = listOf(
+    StyleBrowseOption("小短梯", listOf("小短梯", "短梯", "短方", "方圆")),
+    StyleBrowseOption("短方圆", listOf("短方圆", "短椭圆", "椭圆", "裸", "优雅")),
+    StyleBrowseOption("中方", listOf("中方", "方形", "经典", "红")),
+    StyleBrowseOption("中椭圆", listOf("中椭圆", "椭圆", "玫瑰", "粉")),
+    StyleBrowseOption("中短梯", listOf("中短梯", "梯形", "莫兰迪", "雾霾")),
+    StyleBrowseOption("长梯", listOf("长梯", "闪钻", "奢华", "银河")),
+    StyleBrowseOption("长椭圆", listOf("长椭圆", "流星", "丝绒", "大理石")),
+    StyleBrowseOption("尖水滴", listOf("尖水滴", "长方", "暗黑", "深海", "酒红"))
+)
+
+private val effectBrowseOptions = listOf(
+    StyleBrowseOption("法式", listOf("法式")),
+    StyleBrowseOption("渐变", listOf("渐变", "彩虹", "星空")),
+    StyleBrowseOption("猫眼", listOf("猫眼", "银河", "流星")),
+    StyleBrowseOption("纯色", listOf("纯色", "经典红", "奶油白", "裸色", "珍珠白")),
+    StyleBrowseOption("手绘", listOf("手绘", "樱花", "花", "纹理")),
+    StyleBrowseOption("镜面", listOf("镜面", "金", "香槟", "玫瑰金")),
+    StyleBrowseOption("浮雕", listOf("浮雕", "大理石", "丝绒")),
+    StyleBrowseOption("钻饰", listOf("钻", "闪钻", "奢华", "亮片"))
+)
+
+private val vibeBrowseOptions = listOf(
+    StyleBrowseOption("韩系", listOf("韩", "奶油", "豆沙", "蜜桃", "裸")),
+    StyleBrowseOption("日系", listOf("日", "樱花", "马卡龙", "薄荷")),
+    StyleBrowseOption("中式", listOf("中式", "新中式", "酒红", "朱砂", "玫瑰金")),
+    StyleBrowseOption("欧美", listOf("欧美", "暗黑", "深海", "经典红")),
+    StyleBrowseOption("节庆", listOf("节庆", "红", "金", "彩虹", "银河")),
+    StyleBrowseOption("甜美", listOf("甜美", "粉", "蜜桃", "马卡龙", "樱花")),
+    StyleBrowseOption("日常", listOf("日常", "裸", "奶油白", "珍珠白", "豆沙")),
+    StyleBrowseOption("酷感", listOf("酷", "暗黑", "深海", "雾霾蓝")),
+    StyleBrowseOption("极繁", listOf("极繁", "闪钻", "奢华", "大理石", "流星"))
 )
 
 private data class Store(
@@ -456,6 +505,7 @@ fun NailMindApp() {
     var searchResults by remember { mutableStateOf(styleItems) }
     var tryOnStatus by remember { mutableStateOf(TryOnStatus()) }
     var tryOnHistoryItems by remember { mutableStateOf(emptyList<TryOnHistoryItemDto>()) }
+    var tryOnHistoryManageMode by remember { mutableStateOf(false) }
     var latestTryOnBitmap by remember { mutableStateOf<Bitmap?>(null) }
     var lastTryOnSourceFile by remember { mutableStateOf<File?>(null) }
     var lastTryOnHandId by remember { mutableStateOf<String?>(null) }
@@ -862,10 +912,12 @@ fun NailMindApp() {
         is Screen.StyleDetail -> "款式详情"
         Screen.Search -> "搜索款式"
         is Screen.SearchResult -> "搜索结果"
+        Screen.Ranking -> "热门排行榜"
         is Screen.TryOnUpload -> "上传手部照片"
         is Screen.TryOnProcessing -> "手部识别中"
         is Screen.TryOnResult -> "试戴结果"
         Screen.TryOnHistory -> "试戴记录"
+        Screen.DiyDesigner -> "DIY设计"
         Screen.Favorites -> "我的收藏"
         Screen.BookingRecords -> "预约记录"
         is Screen.StoreDetail -> "门店详情"
@@ -891,6 +943,11 @@ fun NailMindApp() {
                         if (current is Screen.StyleDetail) {
                             IconButton(onClick = { shareStyle(styleDetailStyle) }) {
                                 Icon(Icons.Rounded.Share, contentDescription = "分享")
+                            }
+                        }
+                        if (current is Screen.TryOnHistory) {
+                            TextButton(onClick = { tryOnHistoryManageMode = !tryOnHistoryManageMode }) {
+                                Text(if (tryOnHistoryManageMode) "完成" else "管理")
                             }
                         }
                     },
@@ -1111,6 +1168,7 @@ fun NailMindApp() {
                             stack.clear()
                             stack.add(Screen.Tab(MainTab.Styles))
                         },
+                        onRanking = { go(Screen.Ranking) },
                         onStyleClick = { go(Screen.StyleDetail(it)) }
                     )
                     MainTab.Styles -> StylesScreen(
@@ -1121,9 +1179,12 @@ fun NailMindApp() {
                     )
                     MainTab.TryOn -> TryOnHubScreen(
                         favorites = styleItems.filter { favorites.contains(it.id) },
-                        recommended = homeHot,
+                        hot = homeHot,
+                        systemRecommended = homeRecommended.ifEmpty { styleItems.take(6) },
                         onHotPick = { go(Screen.TryOnUpload(it)) },
-                        onFavoritePick = { go(Screen.TryOnUpload(it, fromFavorites = true)) }
+                        onFavoritePick = { go(Screen.TryOnUpload(it, fromFavorites = true)) },
+                        onRecommendedPick = { go(Screen.TryOnUpload(it)) },
+                        onDiy = { go(Screen.DiyDesigner) }
                     )
                     MainTab.Booking -> BookingScreen(
                         stores = storeItems,
@@ -1173,6 +1234,26 @@ fun NailMindApp() {
                             payload = mapOf("query" to screen.query)
                         )
                         go(Screen.StyleDetail(it))
+                    }
+                )
+
+                Screen.Ranking -> RankingScreen(
+                    styles = (homeHot + homeRecommended + styleItems).distinctBy { it.id }.take(12),
+                    onStyleClick = { go(Screen.StyleDetail(it)) }
+                )
+
+                Screen.DiyDesigner -> DiyDesignerScreen(
+                    onSave = {
+                        Toast.makeText(context, "DIY款式已保存为草稿", Toast.LENGTH_SHORT).show()
+                        back()
+                    },
+                    onTryOn = {
+                        val target = styleItems.firstOrNull()?.id
+                        if (target == null) {
+                            Toast.makeText(context, "暂无可试戴款式", Toast.LENGTH_SHORT).show()
+                        } else {
+                            go(Screen.TryOnUpload(target))
+                        }
                     }
                 )
 
@@ -1228,7 +1309,29 @@ fun NailMindApp() {
                     items = displayedTryOnHistoryItems,
                     styles = styleItems,
                     refreshing = pageRefreshing,
+                    manageMode = tryOnHistoryManageMode,
                     onRefresh = ::refreshPageData,
+                    onShare = { selected ->
+                        if (selected.isNotEmpty()) {
+                            val intent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_TEXT, "我的 Nail Mind 试戴记录：${selected.joinToString("、") { it.styleName }}")
+                            }
+                            context.startActivity(Intent.createChooser(intent, "分享试戴记录"))
+                        }
+                    },
+                    onMoveToFavorites = { selected ->
+                        selected.map { it.styleId }.filter { it.isNotBlank() }.forEach { styleId ->
+                            if (!favorites.contains(styleId)) favorites.add(styleId)
+                        }
+                        Toast.makeText(context, "已移入收藏", Toast.LENGTH_SHORT).show()
+                    },
+                    onDelete = { selected ->
+                        tryOnHistoryItems = tryOnHistoryItems.filterNot { item ->
+                            selected.any { it.id == item.id }
+                        }
+                        Toast.makeText(context, "已从当前列表删除", Toast.LENGTH_SHORT).show()
+                    },
                     onOpenResult = { openTryOnHistoryResult(it) },
                     onTryAgain = { go(Screen.TryOnUpload(it, true)) }
                 )
@@ -1358,113 +1461,55 @@ private fun HomeScreen(
     onRefresh: () -> Unit,
     onSearch: () -> Unit,
     onSeeMore: () -> Unit,
+    onRanking: () -> Unit,
     onStyleClick: (String) -> Unit
 ) {
     PullToRefreshBox(isRefreshing = refreshing, onRefresh = onRefresh, modifier = Modifier.fillMaxSize()) {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 18.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 20.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            item {
-                Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(
-                                text = "Nail Mind",
-                                fontSize = 28.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = "发现适合你的美甲风格",
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.68f),
-                                fontSize = 14.sp
-                            )
-                        }
-                        IconButton(onClick = {}) {
-                            Icon(
-                                Icons.Rounded.NotificationsNone,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                    }
-
-                    Surface(
+            HomeHero(onSearch = onSearch)
+            HomeSectionHeader(title = "推荐", actionText = "查看更多", onAction = onSeeMore)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1.35f),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                recommended.take(2).forEach { style ->
+                    HomeFeaturedCard(
+                        style = style,
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable(onClick = onSearch),
-                        color = MaterialTheme.colorScheme.surface,
-                        shape = MaterialTheme.shapes.medium,
-                        border = androidx.compose.foundation.BorderStroke(
-                            1.dp,
-                            MaterialTheme.colorScheme.outline.copy(alpha = 0.7f)
-                        )
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 14.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Icon(
-                                Icons.Rounded.Search,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                            )
-                            Text(
-                                text = "搜索款式 / 风格 / 门店",
-                                modifier = Modifier.weight(1f),
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.42f),
-                                fontSize = 14.sp
-                            )
-                            Text(
-                                text = "输入关键词",
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.28f),
-                                fontSize = 12.sp
-                            )
-                        }
-                    }
+                            .weight(1f)
+                            .fillMaxSize(),
+                        onClick = { onStyleClick(style.id) }
+                    )
+                }
+                repeat((2 - recommended.take(2).size).coerceAtLeast(0)) {
+                    Spacer(Modifier.weight(1f))
                 }
             }
-            item {
-                HomeSectionHeader(title = "推荐", onSeeMore = onSeeMore)
-            }
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    recommended.take(2).forEach { style ->
-                        HomeFeaturedCard(
-                            style = style,
-                            modifier = Modifier.weight(1f),
-                            onClick = { onStyleClick(style.id) }
-                        )
-                    }
+            HomeSectionHeader(title = "热门款式", actionText = "排行榜", onAction = onRanking)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                hot.take(3).forEach { style ->
+                    HomeCompactCard(
+                        style = style,
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxSize(),
+                        onClick = { onStyleClick(style.id) }
+                    )
                 }
-            }
-            item {
-                HomeSectionHeader(title = "热门款式", onSeeMore = onSeeMore)
-            }
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    hot.take(3).forEach { style ->
-                        HomeCompactCard(
-                            style = style,
-                            modifier = Modifier.weight(1f),
-                            onClick = { onStyleClick(style.id) }
-                        )
-                    }
+                repeat((3 - hot.take(3).size).coerceAtLeast(0)) {
+                    Spacer(Modifier.weight(1f))
                 }
             }
         }
@@ -1472,7 +1517,76 @@ private fun HomeScreen(
 }
 
 @Composable
-private fun HomeSectionHeader(title: String, onSeeMore: () -> Unit) {
+private fun HomeHero(onSearch: () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = "Nail Mind",
+                    fontSize = 26.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "发现适合你的美甲风格",
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.68f),
+                    fontSize = 13.sp
+                )
+            }
+            IconButton(onClick = {}) {
+                Icon(
+                    Icons.Rounded.NotificationsNone,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.size(23.dp)
+                )
+            }
+        }
+
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onSearch),
+            color = MaterialTheme.colorScheme.surface,
+            shape = MaterialTheme.shapes.medium,
+            border = androidx.compose.foundation.BorderStroke(
+                1.dp,
+                MaterialTheme.colorScheme.outline.copy(alpha = 0.55f)
+            )
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 15.dp, vertical = 11.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Icon(
+                    Icons.Rounded.Search,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                )
+                Text(
+                    text = "搜索款式 / 风格 / 门店",
+                    modifier = Modifier.weight(1f),
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.42f),
+                    fontSize = 13.sp
+                )
+                Text(
+                    text = "输入关键词",
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.28f),
+                    fontSize = 11.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HomeSectionHeader(title: String, actionText: String, onAction: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
@@ -1492,11 +1606,11 @@ private fun HomeSectionHeader(title: String, onSeeMore: () -> Unit) {
         )
         Spacer(Modifier.weight(1f))
         Row(
-            modifier = Modifier.clickable(onClick = onSeeMore),
+            modifier = Modifier.clickable(onClick = onAction),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "查看更多",
+                text = actionText,
                 color = MaterialTheme.colorScheme.primary,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium
@@ -1595,6 +1709,80 @@ private fun HomeCompactCard(
     }
 }
 
+@Composable
+private fun RankingScreen(styles: List<NailStyle>, onStyleClick: (String) -> Unit) {
+    val rankedStyles = styles.take(12)
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            SectionHeader("热门排行榜", "根据当前站内推荐与热门款式临时排序，正式数据接入后会自动更新。")
+        }
+        items(rankedStyles) { style ->
+            val rank = rankedStyles.indexOf(style) + 1
+            RankingRow(rank = rank, style = style, onClick = { onStyleClick(style.id) })
+        }
+        if (rankedStyles.isEmpty()) {
+            item {
+                EmptyState("暂无排行榜", "款式数据加载后会自动生成榜单。")
+            }
+        }
+    }
+}
+
+@Composable
+private fun RankingRow(rank: Int, style: NailStyle, onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outline.copy(alpha = 0.36f)
+        )
+    ) {
+        Row(
+            modifier = Modifier.padding(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                color = when (rank) {
+                    1 -> MaterialTheme.colorScheme.primary
+                    2 -> MaterialTheme.colorScheme.primary.copy(alpha = 0.72f)
+                    3 -> MaterialTheme.colorScheme.primary.copy(alpha = 0.48f)
+                    else -> RoseTint
+                },
+                shape = MaterialTheme.shapes.medium
+            ) {
+                Text(
+                    text = rank.toString().padStart(2, '0'),
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                    color = if (rank <= 3) MaterialTheme.colorScheme.onPrimary else RoseAccent,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp
+                )
+            }
+            GradientThumb(style = style, modifier = Modifier.size(82.dp))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(style.name, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(style.vibe, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.64f), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    "热度 ${100 - rank * 3} · 试戴推荐",
+                    color = MaterialTheme.colorScheme.primary,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+            Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.32f))
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun StylesScreen(
@@ -1603,135 +1791,331 @@ private fun StylesScreen(
     onRefresh: () -> Unit,
     onStyleClick: (String) -> Unit
 ) {
-    val categories = listOf("全部") + styles.flatMap { it.tags }.distinct().take(8)
-    val nailTypes = listOf("全部甲型") + styles.map { it.nailType }.distinct()
-    val skinTones = listOf("全部肤色") + styles.map { it.skinTone }.distinct().take(6)
-    val scenes = listOf("全部场景") + styles.flatMap { style ->
-        style.vibe.split(",", "，").map { it.trim() }.filter { it.isNotBlank() }
-    }.distinct().take(8)
+    var selectedTab by remember { mutableStateOf(StyleBrowseTab.NailShape) }
+    var selectedOption by remember { mutableStateOf(nailShapeBrowseOptions.first()) }
+    var query by remember { mutableStateOf("") }
+    val options = selectedTab.options()
 
-    var selectedCategory by remember { mutableStateOf(categories.first()) }
-    var showAdvanced by remember { mutableStateOf(false) }
-    var selectedNailType by remember { mutableStateOf(nailTypes.first()) }
-    var selectedSkinTone by remember { mutableStateOf(skinTones.first()) }
-    var selectedScene by remember { mutableStateOf(scenes.first()) }
-
-    val filteredStyles = styles.filter { style ->
-        val matchCategory = when (selectedCategory) {
-            "全部" -> true
-            "短甲友好" -> style.vibe.contains("短") || style.tags.any { it.contains("短") }
-            else -> style.name.contains(selectedCategory) ||
-                style.vibe.contains(selectedCategory) ||
-                style.tags.any { it.contains(selectedCategory) }
-        }
-        val matchNailType = selectedNailType == "全部甲型" || style.nailType == selectedNailType
-        val matchSkinTone = selectedSkinTone == "全部肤色" || style.skinTone.contains(selectedSkinTone)
-        val matchScene = selectedScene == "全部场景" ||
-            style.vibe.contains(selectedScene) ||
-            style.tags.any { it.contains(selectedScene) } ||
-            style.name.contains(selectedScene)
-
-        matchCategory && matchNailType && matchSkinTone && matchScene
+    LaunchedEffect(selectedTab) {
+        selectedOption = selectedTab.options().first()
     }
 
+    val queryMatchedStyles = styles.filter { it.matchesStyleQuery(query) }
+    val categoryMatchedStyles = queryMatchedStyles.filter { it.matchesBrowseOption(selectedTab, selectedOption) }
+    val filteredStyles = categoryMatchedStyles.ifEmpty { queryMatchedStyles }
+
     PullToRefreshBox(isRefreshing = refreshing, onRefresh = onRefresh, modifier = Modifier.fillMaxSize()) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            Column(
+            Row(
                 modifier = Modifier
-                    .width(92.dp)
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.96f))
-                    .padding(vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                    .fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                categories.forEach { category ->
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    modifier = Modifier.weight(1f),
+                    singleLine = true,
+                    leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
+                    placeholder = { Text("输入关键词") },
+                    shape = MaterialTheme.shapes.large
+                )
+                OutlinedButton(
+                    onClick = {
+                        query = ""
+                        selectedOption = options.first()
+                    },
+                    modifier = Modifier.defaultMinSize(minHeight = 56.dp),
+                    shape = MaterialTheme.shapes.medium
+                ) {
+                    Text("筛选")
+                }
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(MaterialTheme.shapes.medium)
+                    .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f), MaterialTheme.shapes.medium)
+            ) {
+                StyleBrowseTab.values().forEach { tab ->
                     Surface(
                         modifier = Modifier
-                            .padding(horizontal = 10.dp)
-                            .fillMaxWidth()
-                            .clickable { selectedCategory = category },
-                        color = if (selectedCategory == category) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else Color.Transparent,
-                        shape = MaterialTheme.shapes.medium
+                            .weight(1f)
+                            .clickable { selectedTab = tab },
+                        color = if (selectedTab == tab) MaterialTheme.colorScheme.primary.copy(alpha = 0.11f) else Color.Transparent
                     ) {
-                        Column(
-                            modifier = Modifier.padding(vertical = 12.dp, horizontal = 8.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                        Text(
+                            text = tab.title,
+                            modifier = Modifier.padding(vertical = 14.dp),
+                            color = if (selectedTab == tab) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                            fontSize = 16.sp,
+                            fontWeight = if (selectedTab == tab) FontWeight.Bold else FontWeight.SemiBold,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxSize(),
+                horizontalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                LazyColumn(
+                    modifier = Modifier
+                        .width(88.dp)
+                        .fillMaxSize()
+                        .clip(MaterialTheme.shapes.medium)
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.96f))
+                        .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.22f), MaterialTheme.shapes.medium),
+                    contentPadding = PaddingValues(vertical = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    items(options) { option ->
+                        val selected = selectedOption == option
+                        Surface(
+                            modifier = Modifier
+                                .padding(horizontal = 8.dp)
+                                .fillMaxWidth()
+                                .clickable { selectedOption = option },
+                            color = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else Color.Transparent,
+                            shape = MaterialTheme.shapes.small
                         ) {
                             Text(
-                                text = category,
-                                color = if (selectedCategory == category) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f),
-                                fontSize = 13.sp,
-                                fontWeight = if (selectedCategory == category) FontWeight.Bold else FontWeight.Medium,
+                                text = option.label,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 6.dp, vertical = 13.dp),
+                                color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.76f),
+                                fontSize = 14.sp,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
                                 textAlign = TextAlign.Center
                             )
                         }
                     }
                 }
-            }
 
-            LazyColumn(
-                modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                item {
-                    SectionHeader("全部款式", "下拉刷新即可更新最新款式与展示图片")
-                }
-                item {
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    Text("款式库", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                                    Text(
-                                        "当前分类: $selectedCategory",
-                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.64f),
-                                        fontSize = 13.sp
-                                    )
-                                }
-                                OutlinedButton(onClick = { showAdvanced = !showAdvanced }) {
-                                    Text(if (showAdvanced) "收起筛选" else "高级筛选")
-                                }
-                            }
-                            if (showAdvanced) {
-                                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    LibraryFilterGroup("适合甲型", nailTypes, selectedNailType) { selectedNailType = it }
-                                    LibraryFilterGroup("适合肤色", skinTones, selectedSkinTone) { selectedSkinTone = it }
-                                    LibraryFilterGroup("场景风格", scenes, selectedScene) { selectedScene = it }
-                                }
-                            }
+                LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(bottom = 96.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    if (filteredStyles.isEmpty()) {
+                        item {
+                            EmptyState("没有匹配款式", "换个关键词，或切换到其他${selectedTab.title}小类。")
+                        }
+                    } else {
+                        items(filteredStyles) { style ->
+                            StyleGridRow(style = style, onClick = { onStyleClick(style.id) })
                         }
                     }
                 }
+            }
+        }
+    }
+}
 
-                item {
-                    Text(
-                        "共 ${filteredStyles.size} 款",
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f),
-                        fontSize = 13.sp
+private fun StyleBrowseTab.options(): List<StyleBrowseOption> = when (this) {
+    StyleBrowseTab.NailShape -> nailShapeBrowseOptions
+    StyleBrowseTab.Effect -> effectBrowseOptions
+    StyleBrowseTab.Vibe -> vibeBrowseOptions
+}
+
+private fun NailStyle.searchCorpus(): String =
+    listOf(name, vibe, nailType, skinTone, tags.joinToString(" ")).joinToString(" ")
+
+private fun NailStyle.matchesStyleQuery(query: String): Boolean {
+    val trimmed = query.trim()
+    if (trimmed.isBlank()) return true
+    return searchCorpus().contains(trimmed, ignoreCase = true)
+}
+
+private fun NailStyle.matchesBrowseOption(tab: StyleBrowseTab, option: StyleBrowseOption): Boolean {
+    val corpus = searchCorpus()
+    if (option.keywords.any { corpus.contains(it, ignoreCase = true) }) return true
+    val sequence = id.substringAfterLast("-").toIntOrNull() ?: return true
+    val options = tab.options()
+    return options.indexOf(option).takeIf { it >= 0 } == ((sequence - 1).floorMod(options.size))
+}
+
+private fun Int.floorMod(modulus: Int): Int = ((this % modulus) + modulus) % modulus
+
+@Composable
+private fun TryOnHubScreen(
+    favorites: List<NailStyle>,
+    hot: List<NailStyle>,
+    systemRecommended: List<NailStyle>,
+    onHotPick: (String) -> Unit,
+    onFavoritePick: (String) -> Unit,
+    onRecommendedPick: (String) -> Unit,
+    onDiy: () -> Unit
+) {
+    val context = LocalContext.current
+    var activePanel by remember { mutableStateOf<TryOnPanel?>(null) }
+    val activeItems = when (activePanel) {
+        TryOnPanel.Hot -> hot
+        TryOnPanel.Favorites -> favorites
+        TryOnPanel.Recommended -> systemRecommended
+        null -> emptyList()
+    }
+    val activePick: (String) -> Unit = when (activePanel) {
+        TryOnPanel.Hot -> onHotPick
+        TryOnPanel.Favorites -> onFavoritePick
+        TryOnPanel.Recommended -> onRecommendedPick
+        null -> onHotPick
+    }
+    val fallbackStyle = systemRecommended.firstOrNull() ?: hot.firstOrNull() ?: favorites.firstOrNull()
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 14.dp, vertical = 12.dp)
+    ) {
+        Card(
+            modifier = Modifier.fillMaxSize(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+            border = androidx.compose.foundation.BorderStroke(
+                1.dp,
+                MaterialTheme.colorScheme.outline.copy(alpha = 0.22f)
+            )
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(14.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(
+                    modifier = Modifier.width(72.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    TryOnSideButton("热门", Icons.Rounded.Star, activePanel == TryOnPanel.Hot) { activePanel = TryOnPanel.Hot }
+                    TryOnSideButton("收藏", Icons.Rounded.FavoriteBorder, activePanel == TryOnPanel.Favorites) { activePanel = TryOnPanel.Favorites }
+                    TryOnSideButton("推荐", Icons.Rounded.AutoAwesome, activePanel == TryOnPanel.Recommended) { activePanel = TryOnPanel.Recommended }
+                    TryOnSideButton("DIY", Icons.Rounded.BookmarkBorder, false, onDiy)
+                }
+
+                if (activePanel != null) {
+                    TryOnSlideOutList(
+                        title = activePanel!!.title,
+                        styles = activeItems,
+                        onPick = activePick,
+                        modifier = Modifier.width(148.dp)
                     )
                 }
 
-                if (filteredStyles.isEmpty()) {
-                    item {
-                        EmptyState("没有匹配款式", "换个分类，或在高级筛选里放宽甲型和场景条件。")
+                TryOnUploadIllustration(
+                    modifier = Modifier.weight(1f),
+                    onUpload = {
+                        fallbackStyle?.let { onHotPick(it.id) }
+                            ?: Toast.makeText(context, "暂无可试戴款式", Toast.LENGTH_SHORT).show()
                     }
-                } else {
-                    items(filteredStyles) { style ->
-                        StyleGridRow(style = style, onClick = { onStyleClick(style.id) })
+                )
+
+                Column(
+                    modifier = Modifier.width(58.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    OutlinedButton(
+                        onClick = {
+                            Toast.makeText(context, "拍摄时保持手部清晰、手指自然张开、光线充足。", Toast.LENGTH_LONG).show()
+                        },
+                        modifier = Modifier
+                            .width(54.dp)
+                            .height(86.dp),
+                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
+                        shape = MaterialTheme.shapes.large
+                    ) {
+                        Text("拍摄\n参考", textAlign = TextAlign.Center, fontSize = 13.sp, lineHeight = 18.sp)
+                    }
+                }
+            }
+        }
+    }
+}
+
+private enum class TryOnPanel(val title: String) {
+    Hot("热门款式"),
+    Favorites("收藏款式"),
+    Recommended("系统推荐")
+}
+
+@Composable
+private fun TryOnSideButton(
+    label: String,
+    icon: ImageVector,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .size(width = 64.dp, height = 78.dp)
+            .clickable(onClick = onClick),
+        color = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else Color.Transparent,
+        shape = MaterialTheme.shapes.medium,
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outline.copy(alpha = if (selected) 0.55f else 0.32f)
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(icon, contentDescription = label, modifier = Modifier.size(28.dp), tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.68f))
+            Spacer(Modifier.height(6.dp))
+            Text(label, fontSize = 13.sp, textAlign = TextAlign.Center)
+        }
+    }
+}
+
+@Composable
+private fun TryOnSlideOutList(
+    title: String,
+    styles: List<NailStyle>,
+    onPick: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxHeight(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.18f))
+    ) {
+        Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(title, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            if (styles.isEmpty()) {
+                Text("暂无数据", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.56f))
+            } else {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(styles.take(8)) { style ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(MaterialTheme.shapes.small)
+                                .background(MaterialTheme.colorScheme.surface)
+                                .clickable { onPick(style.id) }
+                                .padding(7.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            GradientThumb(style = style, modifier = Modifier.size(42.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(style.name, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text("点击试戴", fontSize = 10.sp, color = MaterialTheme.colorScheme.primary)
+                            }
+                        }
                     }
                 }
             }
@@ -1740,12 +2124,120 @@ private fun StylesScreen(
 }
 
 @Composable
-private fun LibraryFilterGroup(
-    title: String,
-    options: List<String>,
-    selected: String,
-    onSelect: (String) -> Unit
-) {
+private fun TryOnUploadIllustration(modifier: Modifier = Modifier, onUpload: () -> Unit) {
+    Column(
+        modifier = modifier.fillMaxHeight(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.SpaceBetween
+    ) {
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth(),
+            contentAlignment = Alignment.Center
+        ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth(0.9f)
+                    .aspectRatio(0.72f),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.34f),
+                shape = MaterialTheme.shapes.large,
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.25f))
+            ) {
+                Column(
+                    modifier = Modifier.padding(18.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        Icons.Rounded.PhotoCamera,
+                        contentDescription = null,
+                        modifier = Modifier.size(68.dp),
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.34f)
+                    )
+                    Spacer(Modifier.height(14.dp))
+                    Text("上传手部图片开始试戴", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f), fontSize = 15.sp)
+                }
+            }
+        }
+        OutlinedButton(
+            onClick = onUpload,
+            modifier = Modifier
+                .fillMaxWidth(0.82f)
+                .height(56.dp),
+            shape = MaterialTheme.shapes.medium
+        ) {
+            Icon(Icons.Rounded.PhotoCamera, contentDescription = null, modifier = Modifier.size(26.dp))
+            Spacer(Modifier.width(12.dp))
+            Text("拍照上传", fontSize = 18.sp)
+        }
+    }
+}
+
+@Composable
+private fun DiyDesignerScreen(onSave: () -> Unit, onTryOn: () -> Unit) {
+    val shapes = listOf("小短梯", "短方圆", "中方", "中椭圆", "中短梯", "长梯", "长椭圆", "尖水滴")
+    val colors = listOf("奶油白", "樱花粉", "豆沙粉", "酒红", "雾霾蓝", "玫瑰金")
+    var selectedShape by remember { mutableStateOf(shapes.first()) }
+    var designStep by remember { mutableStateOf(0) }
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(20.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        item {
+            SectionHeader(
+                if (designStep == 0) "选择甲型" else "设计款式",
+                if (designStep == 0) "先选择一种甲型，下一步再设计颜色、样式和装饰。" else "DIY功能先做基础流程，后续会加入手绘画布和装饰素材。"
+            )
+        }
+        if (designStep == 0) {
+            items(shapes.chunked(3)) { row ->
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                    row.forEach { shape ->
+                        FilterPill(
+                            text = shape,
+                            selected = selectedShape == shape,
+                            modifier = Modifier.weight(1f)
+                        ) { selectedShape = shape }
+                    }
+                }
+            }
+            item {
+                Button(onClick = { designStep = 1 }, modifier = Modifier.fillMaxWidth()) { Text("下一步") }
+            }
+        } else {
+            item { CompactValue("当前甲型", selectedShape) }
+            item { DiyChoiceRow("设计颜色", colors) }
+            item { DiyChoiceRow("样式", listOf("纯色", "法式", "渐变", "猫眼", "手绘")) }
+            item { DiyChoiceRow("装饰物", listOf("珍珠", "钻饰", "星星", "蝴蝶结", "贴纸")) }
+            item {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(170.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                    shape = MaterialTheme.shapes.large,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.25f))
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text("手绘区域预留", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.56f))
+                    }
+                }
+            }
+            item {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                    OutlinedButton(onClick = onSave, modifier = Modifier.weight(1f)) { Text("保存款式") }
+                    Button(onClick = onTryOn, modifier = Modifier.weight(1f)) { Text("直接试戴") }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DiyChoiceRow(title: String, options: List<String>) {
+    var selected by remember { mutableStateOf(options.firstOrNull().orEmpty()) }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(title, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
         Row(
@@ -1753,66 +2245,26 @@ private fun LibraryFilterGroup(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             options.forEach { option ->
-                FilterChip(
-                    selected = selected == option,
-                    onClick = { onSelect(option) },
-                    label = { Text(option) }
-                )
+                FilterPill(text = option, selected = selected == option) { selected = option }
             }
         }
     }
 }
 
 @Composable
-private fun TryOnHubScreen(
-    favorites: List<NailStyle>,
-    recommended: List<NailStyle>,
-    onHotPick: (String) -> Unit,
-    onFavoritePick: (String) -> Unit
-) {
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(20.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp)
+private fun FilterPill(text: String, selected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Surface(
+        modifier = modifier.clickable(onClick = onClick),
+        color = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.14f) else MaterialTheme.colorScheme.surface,
+        shape = MaterialTheme.shapes.medium,
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.32f))
     ) {
-        item {
-            Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-            ) {
-                Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("AI 试戴入口", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    Text("上传手部照片或直接拍照，系统会识别手型、甲床和肤色。", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f))
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        FilledIconButton(onClick = { recommended.firstOrNull()?.let { onHotPick(it.id) } }) {
-                            Icon(Icons.Rounded.PhotoCamera, contentDescription = "拍照")
-                        }
-                        Button(onClick = { recommended.getOrNull(1)?.let { onHotPick(it.id) } ?: recommended.firstOrNull()?.let { onHotPick(it.id) } }) { Text("从热门款式开始") }
-                    }
-                }
-            }
-        }
-        item { SectionHeader("从收藏中继续", "带出你上次试戴过的款式") }
-        if (favorites.isEmpty()) {
-            item { EmptyState("暂无收藏", "先去首页收藏喜欢的款式，再回来继续试戴。") }
-        } else {
-            items(favorites) { style ->
-                CompactActionCard(
-                    title = style.name,
-                    subtitle = "再次上传手部照片，保留款式偏好",
-                    primary = "再次试戴",
-                    secondary = null,
-                    onPrimary = { onFavoritePick(style.id) }
-                )
-            }
-        }
-        item { SectionHeader("系统推荐", "根据热度和适配手型") }
-        item {
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                items(recommended) { style ->
-                    StyleCard(style = style, onClick = { onHotPick(style.id) }, modifier = Modifier.width(220.dp))
-                }
-            }
-        }
+        Text(
+            text,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 12.dp),
+            textAlign = TextAlign.Center,
+            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+        )
     }
 }
 
@@ -1844,33 +2296,175 @@ private fun ProfileScreen(
     onRecords: () -> Unit,
     onSettings: () -> Unit
 ) {
+    val context = LocalContext.current
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(20.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        contentPadding = PaddingValues(start = 20.dp, top = 18.dp, end = 20.dp, bottom = 112.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(
+                    modifier = Modifier.size(74.dp),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+                    shape = MaterialTheme.shapes.large
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            text = user.name.take(1).ifBlank { "N" },
+                            color = MaterialTheme.colorScheme.primary,
+                            fontSize = 30.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Text(user.name, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                    Text(user.email, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f), fontSize = 14.sp)
+                }
+            }
+        }
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                ProfileQuickCard(
+                    title = "我的收藏",
+                    subtitle = "$favoritesCount 个款式",
+                    icon = Icons.Rounded.FavoriteBorder,
+                    modifier = Modifier.weight(1f),
+                    onClick = onFavorites
+                )
+                ProfileQuickCard(
+                    title = "试戴记录",
+                    subtitle = "$tryOnHistoryCount 条记录",
+                    icon = Icons.Rounded.AutoAwesome,
+                    modifier = Modifier.weight(1f),
+                    onClick = onTryOnHistory
+                )
+            }
+        }
+        item {
+            ProfileMenuRow(
+                title = "我的作品",
+                subtitle = "查看已保存的 DIY 设计与试戴作品",
+                icon = Icons.Rounded.GridView,
+                onClick = { Toast.makeText(context, "我的作品功能待接入", Toast.LENGTH_SHORT).show() }
+            )
+        }
         item {
             Card(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
-                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(user.name, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                    Text(user.email, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Text("我的预约", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    Row(horizontalArrangement = Arrangement.SpaceAround, modifier = Modifier.fillMaxWidth()) {
+                        ProfileActionIcon("订单", Icons.Rounded.CalendarMonth, onRecords)
+                        ProfileActionIcon("评价", Icons.Rounded.Star) {
+                            Toast.makeText(context, "评价功能待接入", Toast.LENGTH_SHORT).show()
+                        }
+                        ProfileActionIcon("售后", Icons.Rounded.Storefront) {
+                            Toast.makeText(context, "售后功能待接入", Toast.LENGTH_SHORT).show()
+                        }
+                    }
                 }
             }
         }
         item {
-            ProfileEntry("收藏", "已保存 $favoritesCount 个试戴相关款式", onFavorites)
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("更多功能", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                ProfileMenuRow("Like", "查看你点赞过的款式内容", Icons.Rounded.FavoriteBorder) {
+                    Toast.makeText(context, "Like 功能待接入", Toast.LENGTH_SHORT).show()
+                }
+                ProfileMenuRow("风格档案", "管理肤色、偏好和常用甲型", Icons.Rounded.Person) {
+                    Toast.makeText(context, "风格档案功能待接入", Toast.LENGTH_SHORT).show()
+                }
+                ProfileMenuRow("消息中心", "查看通知、预约提醒和系统消息", Icons.Rounded.NotificationsNone) {
+                    Toast.makeText(context, "消息中心功能待接入", Toast.LENGTH_SHORT).show()
+                }
+                ProfileMenuRow("设置", "通知、隐私与偏好设置", Icons.Rounded.Storefront, onSettings)
+            }
         }
-        item {
-            ProfileEntry("试戴记录", "共有 $tryOnHistoryCount 条记录，生成完成后可随时回看", onTryOnHistory)
+    }
+}
+
+@Composable
+private fun ProfileQuickCard(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = modifier.clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.22f))
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
+            Text(title, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            Text(subtitle, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f), fontSize = 12.sp)
         }
-        item {
-            ProfileEntry("预约记录", "查看到店时间、门店和订单状态", onRecords)
-        }
-        item {
-            ProfileEntry("设置", "通知、隐私与偏好设置", onSettings)
+    }
+}
+
+@Composable
+private fun ProfileActionIcon(title: String, icon: ImageVector, onClick: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .clip(MaterialTheme.shapes.medium)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Icon(icon, contentDescription = title, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
+        Text(title, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+    }
+}
+
+@Composable
+private fun ProfileMenuRow(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.18f))
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Surface(
+                modifier = Modifier.size(42.dp),
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                shape = MaterialTheme.shapes.medium
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(23.dp))
+                }
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(title, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text(subtitle, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f), fontSize = 12.sp)
+            }
+            Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.34f))
         }
     }
 }
@@ -2312,97 +2906,217 @@ private fun TryOnHistoryScreen(
     items: List<TryOnHistoryItemDto>,
     styles: List<NailStyle>,
     refreshing: Boolean,
+    manageMode: Boolean,
     onRefresh: () -> Unit,
+    onShare: (List<TryOnHistoryItemDto>) -> Unit,
+    onMoveToFavorites: (List<TryOnHistoryItemDto>) -> Unit,
+    onDelete: (List<TryOnHistoryItemDto>) -> Unit,
     onOpenResult: (TryOnHistoryItemDto) -> Unit,
     onTryAgain: (String) -> Unit
 ) {
+    val selectedIds = remember { mutableStateListOf<String>() }
+    LaunchedEffect(manageMode, items) {
+        if (!manageMode) selectedIds.clear()
+        selectedIds.removeAll { id -> items.none { it.id == id } }
+    }
     if (items.isEmpty()) {
         EmptyState("还没有试戴记录", "上传一张手部照片后，生成过的效果图都会保存在这里。")
         return
     }
     PullToRefreshBox(isRefreshing = refreshing, onRefresh = onRefresh, modifier = Modifier.fillMaxSize()) {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(20.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            items(items) { item ->
-                val isPending = item.source == "pending" || item.resultUrl.isBlank()
-                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Box(
-                                modifier = Modifier
-                                    .size(92.dp)
-                                    .clip(MaterialTheme.shapes.medium)
-                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
-                            ) {
-                                SubcomposeAsyncImage(
-                                    model = item.resultUrl.takeIf { it.isNotBlank() },
-                                    contentDescription = item.styleName,
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentScale = ContentScale.Crop
-                                ) {
-                                    when (painter.state) {
-                                        is AsyncImagePainter.State.Success -> SubcomposeAsyncImageContent()
-                                        else -> Column(
-                                            modifier = Modifier
-                                                .fillMaxSize()
-                                                .padding(10.dp),
-                                            verticalArrangement = Arrangement.Center,
-                                            horizontalAlignment = Alignment.CenterHorizontally
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Rounded.AutoAwesome,
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
-                                                modifier = Modifier.size(24.dp)
-                                            )
-                                            Spacer(Modifier.height(6.dp))
-                                            Text(
-                                                text = if (isPending) "生成中" else "结果待查看",
-                                                fontSize = 11.sp,
-                                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                                                textAlign = TextAlign.Center
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                            Column(
-                                modifier = Modifier.weight(1f),
-                                verticalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Text(item.styleName, fontWeight = FontWeight.SemiBold)
-                                Text(
-                                    if (isPending) "试戴结果生成中" else "最近一次试戴结果",
-                                    fontSize = 13.sp,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.68f)
-                                )
-                                Text(
-                                    item.createdAt.take(16).replace('T', ' '),
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.52f)
-                                )
-                            }
+        Box(Modifier.fillMaxSize()) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(start = 20.dp, top = 20.dp, end = 20.dp, bottom = if (manageMode) 132.dp else 20.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                items(items) { item ->
+                    val selected = selectedIds.contains(item.id)
+                    TryOnHistoryCard(
+                        item = item,
+                        manageMode = manageMode,
+                        selected = selected,
+                        onToggleSelected = {
+                            if (selected) selectedIds.remove(item.id) else selectedIds.add(item.id)
+                        },
+                        onOpenResult = { onOpenResult(item) },
+                        onTryAgain = { onTryAgain(item.styleId) }
+                    )
+                }
+            }
+            if (manageMode) {
+                val selectedItems = items.filter { selectedIds.contains(it.id) }
+                TryOnHistoryManageBar(
+                    allSelected = selectedIds.size == items.size,
+                    selectedCount = selectedItems.size,
+                    onToggleAll = {
+                        if (selectedIds.size == items.size) {
+                            selectedIds.clear()
+                        } else {
+                            selectedIds.clear()
+                            selectedIds.addAll(items.map { it.id })
                         }
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            OutlinedButton(
-                                onClick = { onOpenResult(item) },
-                                modifier = Modifier.weight(1f),
-                                enabled = !isPending
-                            ) {
-                                Text("查看结果")
-                            }
-                            Button(onClick = { onTryAgain(item.styleId) }, modifier = Modifier.weight(1f)) {
-                                Text("再次试戴")
+                    },
+                    onShare = { onShare(selectedItems) },
+                    onMoveToFavorites = { onMoveToFavorites(selectedItems) },
+                    onDelete = {
+                        onDelete(selectedItems)
+                        selectedIds.clear()
+                    },
+                    modifier = Modifier.align(Alignment.BottomCenter)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TryOnHistoryCard(
+    item: TryOnHistoryItemDto,
+    manageMode: Boolean,
+    selected: Boolean,
+    onToggleSelected: () -> Unit,
+    onOpenResult: () -> Unit,
+    onTryAgain: () -> Unit
+) {
+    val isPending = item.source == "pending" || item.resultUrl.isBlank()
+    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(enabled = manageMode, onClick = onToggleSelected)
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (manageMode) {
+                Checkbox(checked = selected, onCheckedChange = { onToggleSelected() })
+            }
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Box(
+                        modifier = Modifier
+                            .size(92.dp)
+                            .clip(MaterialTheme.shapes.medium)
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                    ) {
+                        SubcomposeAsyncImage(
+                            model = item.resultUrl.takeIf { it.isNotBlank() },
+                            contentDescription = item.styleName,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        ) {
+                            when (painter.state) {
+                                is AsyncImagePainter.State.Success -> SubcomposeAsyncImageContent()
+                                else -> Column(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(10.dp),
+                                    verticalArrangement = Arrangement.Center,
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.AutoAwesome,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Spacer(Modifier.height(6.dp))
+                                    Text(
+                                        text = if (isPending) "生成中" else "结果待查看",
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
                             }
                         }
                     }
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(item.styleName, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            if (isPending) "试戴结果生成中" else "最近一次试戴结果",
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.68f)
+                        )
+                        Text(
+                            item.createdAt.take(16).replace('T', ' '),
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.52f)
+                        )
+                    }
                 }
+                if (!manageMode) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        OutlinedButton(
+                            onClick = onOpenResult,
+                            modifier = Modifier.weight(1f),
+                            enabled = !isPending
+                        ) {
+                            Text("查看结果")
+                        }
+                        Button(onClick = onTryAgain, modifier = Modifier.weight(1f)) {
+                            Text("再次试戴")
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TryOnHistoryManageBar(
+    allSelected: Boolean,
+    selectedCount: Int,
+    onToggleAll: () -> Unit,
+    onShare: () -> Unit,
+    onMoveToFavorites: () -> Unit,
+    onDelete: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .navigationBarsPadding(),
+        color = MaterialTheme.colorScheme.surface,
+        shadowElevation = 12.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                modifier = Modifier.clickable(onClick = onToggleAll),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Checkbox(checked = allSelected, onCheckedChange = { onToggleAll() })
+                Text("全选", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f))
+            }
+            Spacer(Modifier.weight(1f))
+            OutlinedButton(onClick = onShare, enabled = selectedCount > 0) {
+                Text("分享")
+            }
+            OutlinedButton(onClick = onMoveToFavorites, enabled = selectedCount > 0) {
+                Text("移入收藏")
+            }
+            Button(
+                onClick = onDelete,
+                enabled = selectedCount > 0,
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF2D55))
+            ) {
+                Icon(Icons.Rounded.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(4.dp))
+                Text("删除")
             }
         }
     }

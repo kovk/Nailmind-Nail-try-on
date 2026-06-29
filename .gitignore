@@ -37,6 +37,7 @@ server/api/xhs-storage-state.json
 **/xhs-storage-state.json
 
 # Runtime data, models, and generated artifacts
+server-backups/
 server/api/.cache/
 server/api/.idea/
 server/api/data/nailmind.db

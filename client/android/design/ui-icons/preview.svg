@@ -1,0 +1,130 @@
+<svg width="860" height="460" viewBox="0 0 860 460" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="860" height="460" rx="32" fill="#FFF6F9"/>
+  <text x="44" y="64" fill="#362631" font-family="Helvetica, Arial, sans-serif" font-size="28" font-weight="700">NailMind UI Icons</text>
+  <text x="44" y="94" fill="#8E6A7A" font-family="Helvetica, Arial, sans-serif" font-size="16">Based on the bunny-nail app icon. 24px, rounded stroke, soft pink accent.</text>
+
+  <g transform="translate(40 130)">
+    <g transform="translate(0 0)">
+      <rect width="120" height="120" rx="26" fill="white"/>
+      <text x="60" y="96" text-anchor="middle" fill="#8E6A7A" font-family="Helvetica, Arial, sans-serif" font-size="14">home</text>
+      <g transform="translate(48 26)">
+        <path d="M4.5 10.5L12 4.75L19.5 10.5V18C19.5 19.1 18.6 20 17.5 20H6.5C5.4 20 4.5 19.1 4.5 18V10.5Z" stroke="#DA5B87" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M9.25 20V14.75C9.25 13.78 10.03 13 11 13H13C13.97 13 14.75 13.78 14.75 14.75V20" stroke="#DA5B87" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M12 8.6C12.72 7.89 13.89 7.89 14.61 8.6C15.32 9.31 15.32 10.46 14.61 11.17L12.82 12.92C12.37 13.36 11.63 13.36 11.18 12.92L9.39 11.17C8.68 10.46 8.68 9.31 9.39 8.6C10.11 7.89 11.28 7.89 12 8.6Z" fill="#F08DB1"/>
+      </g>
+    </g>
+    <g transform="translate(130 0)">
+      <rect width="120" height="120" rx="26" fill="white"/>
+      <text x="60" y="96" text-anchor="middle" fill="#8E6A7A" font-family="Helvetica, Arial, sans-serif" font-size="14">styles</text>
+      <g transform="translate(48 26)">
+        <rect x="4.5" y="4.5" width="5.5" height="6.75" rx="2.75" stroke="#DA5B87" stroke-width="1.8"/>
+        <rect x="14" y="4.5" width="5.5" height="6.75" rx="2.75" stroke="#DA5B87" stroke-width="1.8"/>
+        <rect x="4.5" y="12.75" width="5.5" height="6.75" rx="2.75" stroke="#DA5B87" stroke-width="1.8"/>
+        <rect x="14" y="12.75" width="5.5" height="6.75" rx="2.75" stroke="#DA5B87" stroke-width="1.8"/>
+        <path d="M12 7.1L12.45 8.05L13.5 8.22L12.74 8.95L12.92 10L12 9.5L11.08 10L11.26 8.95L10.5 8.22L11.55 8.05L12 7.1Z" fill="#F08DB1"/>
+      </g>
+    </g>
+    <g transform="translate(260 0)">
+      <rect width="120" height="120" rx="26" fill="white"/>
+      <text x="60" y="96" text-anchor="middle" fill="#8E6A7A" font-family="Helvetica, Arial, sans-serif" font-size="14">tryon</text>
+      <g transform="translate(48 26)">
+        <path d="M6.25 15.5C6.25 12.88 8.38 10.75 11 10.75H13C15.62 10.75 17.75 12.88 17.75 15.5V17C17.75 18.66 16.41 20 14.75 20H9.25C7.59 20 6.25 18.66 6.25 17V15.5Z" stroke="#DA5B87" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M8.5 11V8.5C8.5 7.26 9.51 6.25 10.75 6.25C11.99 6.25 13 7.26 13 8.5V10.75" stroke="#DA5B87" stroke-width="1.8" stroke-linecap="round"/>
+        <path d="M13 10.75V7.75C13 6.65 13.9 5.75 15 5.75C16.1 5.75 17 6.65 17 7.75V12" stroke="#DA5B87" stroke-width="1.8" stroke-linecap="round"/>
+        <path d="M18.25 4.25L18.66 5.14L19.65 5.3L18.94 5.98L19.1 6.97L18.25 6.5L17.4 6.97L17.56 5.98L16.85 5.3L17.84 5.14L18.25 4.25Z" fill="#F08DB1"/>
+        <path d="M20 9L20.29 9.63L21 9.75L20.49 10.24L20.61 10.95L20 10.62L19.39 10.95L19.51 10.24L19 9.75L19.71 9.63L20 9Z" fill="#F08DB1"/>
+      </g>
+    </g>
+    <g transform="translate(390 0)">
+      <rect width="120" height="120" rx="26" fill="white"/>
+      <text x="60" y="96" text-anchor="middle" fill="#8E6A7A" font-family="Helvetica, Arial, sans-serif" font-size="14">booking</text>
+      <g transform="translate(48 26)">
+        <rect x="4" y="5.5" width="16" height="14.5" rx="3" stroke="#DA5B87" stroke-width="1.8"/>
+        <path d="M8 4V7" stroke="#DA5B87" stroke-width="1.8" stroke-linecap="round"/>
+        <path d="M16 4V7" stroke="#DA5B87" stroke-width="1.8" stroke-linecap="round"/>
+        <path d="M4.75 9.5H19.25" stroke="#DA5B87" stroke-width="1.8" stroke-linecap="round"/>
+        <path d="M12 12.1C12.72 11.39 13.89 11.39 14.61 12.1C15.32 12.81 15.32 13.96 14.61 14.67L12.82 16.42C12.37 16.86 11.63 16.86 11.18 16.42L9.39 14.67C8.68 13.96 8.68 12.81 9.39 12.1C10.11 11.39 11.28 11.39 12 12.1Z" fill="#F08DB1"/>
+      </g>
+    </g>
+    <g transform="translate(520 0)">
+      <rect width="120" height="120" rx="26" fill="white"/>
+      <text x="60" y="96" text-anchor="middle" fill="#8E6A7A" font-family="Helvetica, Arial, sans-serif" font-size="14">profile</text>
+      <g transform="translate(48 26)">
+        <path d="M8.2 8.6L7.2 4.8C6.92 3.74 8.1 2.93 8.95 3.62L11.25 5.5" stroke="#DA5B87" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M15.8 8.6L16.8 4.8C17.08 3.74 15.9 2.93 15.05 3.62L12.75 5.5" stroke="#DA5B87" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="12" cy="11.25" r="4.25" stroke="#DA5B87" stroke-width="1.8"/>
+        <path d="M5 19.25C5.98 16.78 8.78 15 12 15C15.22 15 18.02 16.78 19 19.25" stroke="#DA5B87" stroke-width="1.8" stroke-linecap="round"/>
+        <circle cx="10.5" cy="10.8" r="0.8" fill="#F08DB1"/>
+        <circle cx="13.5" cy="10.8" r="0.8" fill="#F08DB1"/>
+      </g>
+    </g>
+    <g transform="translate(650 0)">
+      <rect width="120" height="120" rx="26" fill="white"/>
+      <text x="60" y="96" text-anchor="middle" fill="#8E6A7A" font-family="Helvetica, Arial, sans-serif" font-size="14">favorites</text>
+      <g transform="translate(48 26)">
+        <path d="M12 19.75L5.62 13.52C3.96 11.91 3.96 9.3 5.62 7.69C7.27 6.08 9.96 6.08 11.61 7.69L12 8.07L12.39 7.69C14.04 6.08 16.73 6.08 18.38 7.69C20.04 9.3 20.04 11.91 18.38 13.52L12 19.75Z" stroke="#DA5B87" stroke-width="1.8" stroke-linejoin="round"/>
+        <path d="M6 5.25L6.36 6.05L7.25 6.19L6.61 6.8L6.76 7.69L6 7.3L5.24 7.69L5.39 6.8L4.75 6.19L5.64 6.05L6 5.25Z" fill="#F08DB1"/>
+        <path d="M18.5 14.75L18.79 15.37L19.5 15.49L18.99 15.98L19.11 16.69L18.5 16.36L17.89 16.69L18.01 15.98L17.5 15.49L18.21 15.37L18.5 14.75Z" fill="#F08DB1"/>
+      </g>
+    </g>
+  </g>
+
+  <g transform="translate(40 270)">
+    <g transform="translate(0 0)">
+      <rect width="120" height="120" rx="26" fill="white"/>
+      <text x="60" y="96" text-anchor="middle" fill="#8E6A7A" font-family="Helvetica, Arial, sans-serif" font-size="14">history</text>
+      <g transform="translate(48 26)">
+        <path d="M4.75 11.5C5.02 7.4 8.42 4.15 12.6 4.26C16.78 4.37 20 7.79 20 12C20 16.28 16.53 19.75 12.25 19.75C9.77 19.75 7.56 18.58 6.14 16.75" stroke="#DA5B87" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M4 8.5V12.25H7.75" stroke="#DA5B87" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M12.25 8.25V12.25L14.9 13.9" stroke="#DA5B87" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M17.8 5.2L18.09 5.83L18.8 5.95L18.29 6.44L18.41 7.15L17.8 6.82L17.19 7.15L17.31 6.44L16.8 5.95L17.51 5.83L17.8 5.2Z" fill="#F08DB1"/>
+      </g>
+    </g>
+    <g transform="translate(130 0)">
+      <rect width="120" height="120" rx="26" fill="white"/>
+      <text x="60" y="96" text-anchor="middle" fill="#8E6A7A" font-family="Helvetica, Arial, sans-serif" font-size="14">search</text>
+      <g transform="translate(48 26)">
+        <circle cx="10.5" cy="10.5" r="5.75" stroke="#DA5B87" stroke-width="1.8"/>
+        <path d="M14.75 14.75L19.25 19.25" stroke="#DA5B87" stroke-width="1.8" stroke-linecap="round"/>
+        <path d="M16.75 5L17.16 5.89L18.15 6.05L17.44 6.73L17.6 7.72L16.75 7.25L15.9 7.72L16.06 6.73L15.35 6.05L16.34 5.89L16.75 5Z" fill="#F08DB1"/>
+      </g>
+    </g>
+    <g transform="translate(260 0)">
+      <rect width="120" height="120" rx="26" fill="white"/>
+      <text x="60" y="96" text-anchor="middle" fill="#8E6A7A" font-family="Helvetica, Arial, sans-serif" font-size="14">camera</text>
+      <g transform="translate(48 26)">
+        <path d="M6.25 7.5H8.55L9.7 5.7C10.02 5.2 10.57 4.9 11.16 4.9H12.84C13.43 4.9 13.98 5.2 14.3 5.7L15.45 7.5H17.75C18.99 7.5 20 8.51 20 9.75V17.25C20 18.49 18.99 19.5 17.75 19.5H6.25C5.01 19.5 4 18.49 4 17.25V9.75C4 8.51 5.01 7.5 6.25 7.5Z" stroke="#DA5B87" stroke-width="1.8" stroke-linejoin="round"/>
+        <circle cx="12" cy="13" r="3.25" stroke="#DA5B87" stroke-width="1.8"/>
+        <path d="M12 11.7C12.45 11.25 13.18 11.25 13.63 11.7C14.08 12.14 14.08 12.86 13.63 13.3L12.5 14.41C12.22 14.69 11.78 14.69 11.5 14.41L10.37 13.3C9.92 12.86 9.92 12.14 10.37 11.7C10.82 11.25 11.55 11.25 12 11.7Z" fill="#F08DB1"/>
+      </g>
+    </g>
+    <g transform="translate(390 0)">
+      <rect width="120" height="120" rx="26" fill="white"/>
+      <text x="60" y="96" text-anchor="middle" fill="#8E6A7A" font-family="Helvetica, Arial, sans-serif" font-size="14">gallery</text>
+      <g transform="translate(48 26)">
+        <rect x="6.5" y="4.5" width="11" height="14" rx="2.5" stroke="#DA5B87" stroke-width="1.8"/>
+        <path d="M6.5 8L5.75 8C4.78 8 4 8.78 4 9.75V17C4 18.38 5.12 19.5 6.5 19.5H14.25" stroke="#DA5B87" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M8.75 15.25L11 12.75L13.25 15L15.5 12.25" stroke="#DA5B87" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="13.9" cy="8.4" r="1.1" fill="#F08DB1"/>
+      </g>
+    </g>
+    <g transform="translate(520 0)">
+      <rect width="120" height="120" rx="26" fill="white"/>
+      <text x="60" y="96" text-anchor="middle" fill="#8E6A7A" font-family="Helvetica, Arial, sans-serif" font-size="14">settings</text>
+      <g transform="translate(48 26)">
+        <path d="M12 4.5L13.18 6.17C13.42 6.51 13.84 6.68 14.25 6.6L16.26 6.2L16.52 8.24C16.57 8.64 16.84 8.98 17.22 9.13L19.12 9.88L18.09 11.66C17.88 12.02 17.88 12.47 18.09 12.84L19.12 14.62L17.22 15.37C16.84 15.52 16.57 15.86 16.52 16.26L16.26 18.3L14.25 17.9C13.84 17.82 13.42 17.99 13.18 18.33L12 20L10.82 18.33C10.58 17.99 10.16 17.82 9.75 17.9L7.74 18.3L7.48 16.26C7.43 15.86 7.16 15.52 6.78 15.37L4.88 14.62L5.91 12.84C6.12 12.47 6.12 12.02 5.91 11.66L4.88 9.88L6.78 9.13C7.16 8.98 7.43 8.64 7.48 8.24L7.74 6.2L9.75 6.6C10.16 6.68 10.58 6.51 10.82 6.17L12 4.5Z" stroke="#DA5B87" stroke-width="1.5" stroke-linejoin="round"/>
+        <circle cx="12" cy="12.25" r="3.1" stroke="#DA5B87" stroke-width="1.8"/>
+        <path d="M12 10.9C12.46 10.45 13.2 10.45 13.66 10.9C14.11 11.35 14.11 12.08 13.66 12.53L12.52 13.64C12.24 13.92 11.79 13.92 11.51 13.64L10.37 12.53C9.92 12.08 9.92 11.35 10.37 10.9C10.83 10.45 11.57 10.45 12 10.9Z" fill="#F08DB1"/>
+      </g>
+    </g>
+    <g transform="translate(650 0)">
+      <rect width="120" height="120" rx="26" fill="white"/>
+      <text x="60" y="96" text-anchor="middle" fill="#8E6A7A" font-family="Helvetica, Arial, sans-serif" font-size="14">notifications</text>
+      <g transform="translate(48 26)">
+        <path d="M7 10.25C7 7.35 9.35 5 12.25 5C15.15 5 17.5 7.35 17.5 10.25V12.84C17.5 13.67 17.79 14.47 18.32 15.11L19.1 16.05C19.78 16.88 19.19 18.12 18.11 18.12H6.39C5.31 18.12 4.72 16.88 5.4 16.05L6.18 15.11C6.71 14.47 7 13.67 7 12.84V10.25Z" stroke="#DA5B87" stroke-width="1.8" stroke-linejoin="round"/>
+        <path d="M10 19C10.39 20.15 11.34 20.75 12.25 20.75C13.16 20.75 14.11 20.15 14.5 19" stroke="#DA5B87" stroke-width="1.8" stroke-linecap="round"/>
+        <path d="M17.85 5.35C18.3 4.9 19.03 4.9 19.48 5.35C19.93 5.79 19.93 6.51 19.48 6.95L18.35 8.06C18.07 8.34 17.63 8.34 17.35 8.06L16.22 6.95C15.77 6.51 15.77 5.79 16.22 5.35C16.67 4.9 17.4 4.9 17.85 5.35Z" fill="#F08DB1"/>
+      </g>
+    </g>
+  </g>
+</svg>

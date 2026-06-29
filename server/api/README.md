@@ -4,18 +4,18 @@
 
 - 面向 App 的 `FastAPI` 主服务
 - 对齐 `nail-vista` 的 AI 试戴实现
-  - 一级：百炼 `qwen-image-2.0-pro` 多图编辑
-  - 结果缓存：`/app/data/results/hand_xx+style_xx+length+shape.png`
+  - 阿里云百炼 / DashScope `qwen-image-2.0-pro` 多图参考图片编辑
+  - 上传图和款式图自动压缩
+  - 结果缓存：`/app/data/results/hand_<hash>+style_xx+length+shape.png`
 
 ## 目录
 
 ```text
 server/api/
 ├── app/                      FastAPI 主服务
-├── worker/                   旧异步 worker（兼容保留）
 ├── deploy/                   Docker Compose 远程部署目录
 ├── Dockerfile                API 镜像
-├── docker-compose.yml        API + worker 本地编排
+├── docker-compose.yml        API 本地编排
 ├── import_data.py            Excel 导入脚本
 ├── batch_generate.py         批量预生成 325 组试戴结果
 ├── requirements.txt          API 依赖
@@ -77,12 +77,21 @@ WORKER_TOKEN
 
 ```text
 DASHSCOPE_API_KEY
+TRYON_OPTIMIZE_MAX_SIDE
+TRYON_QUALITY_EVAL_MODEL
+TRYON_QUALITY_EVAL_API_URL
+TRYON_QUALITY_EVAL_NATIVE_API_URL
+TRYON_QUALITY_EVAL_TIMEOUT_SECONDS
 ```
 
 关键说明：
 
 - `DASHSCOPE_API_KEY`
-  - 用于百炼 `qwen-image-2.0-pro`，是 AI 试戴唯一必填的模型配置。
+  - 用于百炼 `qwen-image-2.0-pro` 图片编辑，也是试戴质量评估 `qwen3.7-plus` 的鉴权配置。
+- `TRYON_OPTIMIZE_MAX_SIDE`
+  - 默认 `1024`，上传图和生成前输入图会压缩到最长边不超过该值，避免手部结构细节过低导致手指数量漂移。
+- `TRYON_QUALITY_EVAL_MODEL`
+  - 默认 `qwen3.7-plus`，用于试戴后的款式还原度和手部一致性自动评分。
 
 ## Excel 导入
 
@@ -140,7 +149,7 @@ Authorization: Bearer <token>
 
 ```json
 {
-  "result_url": "http://localhost:8080/files/results/hand_01+style_01+natural_short+squoval.png",
+  "result_url": "http://localhost:8080/files/results/hand_abcd1234abcd1234+style_01+natural_short+squoval.png",
   "duration_ms": 842,
   "style_name": "法式简约",
   "source": "bailian-live"
@@ -341,6 +350,40 @@ OPENCLAW_TIMEOUT_SECONDS=180
 cd /Users/kongzhitong/Documents/美甲/server/trend_agent
 docker compose -f docker-compose.openclaw.yml up -d
 ```
+
+## 运营看板评测指标
+
+`GET /admin/analytics/overview` 会从真实业务表和 `event_logs` 聚合以下数据：
+
+- 款式曝光量、点击率、试戴完成率、预约转化率。
+- AI 试戴平均耗时，包含 99% 置信区间和样本量。
+- 款式还原度、手工一致性。来源为人工评测或模型评估事件，没有样本时显示待评测，不生成假分数。
+- 隐私脱敏说明。运营端只展示聚合指标，不展示用户原始手图或可能包含面部信息的试戴结果图。
+
+评测事件写入 `event_logs`，推荐事件名：
+
+```text
+tryon_quality_eval
+tryon_manual_eval
+tryon_model_eval
+```
+
+事件 `payload_json` 示例：
+
+```json
+{
+  "styleFidelity": 0.92,
+  "manualConsistency": 0.88,
+  "evaluator": "manual",
+  "notes": "款式纹理还原自然，手部姿态保持一致"
+}
+```
+
+字段说明：
+
+- `styleFidelity`：款式还原度，取值 `0-1`；如果传 `0-100` 的百分制，后端会自动归一化。
+- `manualConsistency`：手工一致性，取值 `0-1`；也支持百分制输入。
+- `event_id` 必须唯一，避免重复计数。
 
 ## 默认初始化账号
 

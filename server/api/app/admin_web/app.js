@@ -16,19 +16,21 @@ const loginForm = document.getElementById("login-form");
 const authError = document.getElementById("auth-error");
 const tabs = document.getElementById("tabs");
 const view = document.getElementById("view");
-const XHS_ACCOUNT_MATRIX_URL = "/xhs-account/platforms/xhs/accounts";
+const sidebarNav = document.getElementById("sidebar-nav");
+const refreshViewButton = document.getElementById("refresh-view");
+const topbarDetailButton = document.getElementById("topbar-detail");
 
 const roleLayouts = {
   platform_admin: {
     title: "运营工作台",
-    subtitle: "围绕真实埋点、款式资产和门店申请做统一运营决策。",
-    note: "运营端可以直接调整款式资料、上下架状态、图片资产，并审核商家申请和 OpenClaw 建议。",
+    subtitle: "面向用户增长、款式转化和门店履约的 ToC 运营后台。",
+    note: "首页看运营结论，详情页处理款式、趋势、商家申请和行为明细；不展示技术枚举和测试数据。",
     views: [
-      { id: "overview", label: "经营总览", kicker: "Operations", title: "真实埋点总览", description: "只展示数据库里的真实曝光、点击、试戴与预约事件，不写入任何测试埋点。" },
-      { id: "styles", label: "款式管理", kicker: "Catalog", title: "款式资产与数据库编辑", description: "可直接编辑款式名称、风格、标签、上下架状态，并替换图片资产。" },
-      { id: "requests", label: "商家申请", kicker: "Requests", title: "商家申请审批", description: "保留门店提交的上架、下架申请，运营审核后同步到真实库存状态。" },
-      { id: "trends", label: "趋势中枢", kicker: "Trends", title: "社区趋势与站内热度联动", description: "同一页查看小红书高热话题、站内真实热款和 OpenClaw 建议，让运营同时判断外部风向与内部承接能力。" },
-      { id: "events", label: "埋点明细", kicker: "Events", title: "真实事件流", description: "按时间查看真实用户行为事件，支持复盘款式曝光、试戴与预约链路。" },
+      { id: "overview", label: "用户看板", kicker: "运营看板", title: "用户增长与款式转化", description: "用真实曝光、点击、试戴与预约埋点生成运营结论；明细只在下钻页展示。" },
+      { id: "quality", label: "试戴质检", kicker: "质检台", title: "AI 试戴质量复核", description: "查看用户手图、款式图和生成图，使用 qwen3.7-plus 初评，运营可人工改分保存。" },
+      { id: "styles", label: "款式运营", kicker: "款式库", title: "款式资产与上下架", description: "编辑款式名称、风格、标签、上下架状态和图片资产。" },
+      { id: "requests", label: "商家审核", kicker: "审核台", title: "商家申请审批", description: "处理门店提交的上架、下架申请，并同步到真实库存状态。" },
+      { id: "trends", label: "趋势洞察", kicker: "趋势", title: "社区趋势与站内热度", description: "结合小红书热帖、站内真实热款和 OpenClaw 建议，判断上新与加推方向。" },
     ],
   },
   merchant_admin: {
@@ -38,7 +40,7 @@ const roleLayouts = {
     views: [
       { id: "goods", label: "商品信息", kicker: "Merchant", title: "门店商品与库存", description: "查看当前门店可售款式、库存状态与展示图片，不展示运营侧趋势信息。" },
       { id: "bookings", label: "预约信息", kicker: "Bookings", title: "预约履约", description: "查看真实预约记录、用户姓名、到店时段和当前履约状态。" },
-      { id: "requests", label: "商家申请", kicker: "Requests", title: "上架与下架申请", description: "向平台运营提交款式上架或下架申请，并保留历史审批记录。" },
+      { id: "requests", label: "商家申请", kicker: "申请", title: "上架与下架申请", description: "向平台运营提交款式上架或下架申请，并保留历史审批记录。" },
       { id: "store", label: "门店设置", kicker: "Store", title: "门店档期与营业状态", description: "调整门店可预约时段和是否接单，前台预约入口会直接读取这里的真实状态。" },
     ],
   },
@@ -49,7 +51,7 @@ const roleLayouts = {
     views: [
       { id: "goods", label: "商品信息", kicker: "Merchant", title: "门店商品与库存", description: "查看当前门店可售款式、库存状态与展示图片，不展示运营侧趋势信息。" },
       { id: "bookings", label: "预约信息", kicker: "Bookings", title: "预约履约", description: "查看真实预约记录、用户姓名、到店时段和当前履约状态。" },
-      { id: "requests", label: "商家申请", kicker: "Requests", title: "上架与下架申请", description: "向平台运营提交款式上架或下架申请，并保留历史审批记录。" },
+      { id: "requests", label: "商家申请", kicker: "申请", title: "上架与下架申请", description: "向平台运营提交款式上架或下架申请，并保留历史审批记录。" },
       { id: "store", label: "门店设置", kicker: "Store", title: "门店档期与营业状态", description: "调整门店可预约时段和是否接单，前台预约入口会直接读取这里的真实状态。" },
     ],
   },
@@ -77,12 +79,20 @@ function roleLabel(role) {
 }
 
 function humanizeHealthLabel(value) {
-  if (value === "insufficient_distribution") return "分发不足";
-  if (value === "optimize_candidate") return "待优化";
-  if (value === "delist_candidate") return "下架观察";
+  if (value === "insufficient_distribution") return "曝光不足";
+  if (value === "optimize_candidate") return "有兴趣未转化";
+  if (value === "delist_candidate") return "低效曝光";
   if (value === "healthy") return "表现稳定";
-  if (value === "insufficient_data") return "数据不足";
+  if (value === "insufficient_data") return "数据待积累";
   return value || "待观察";
+}
+
+function healthActionText(value) {
+  if (value === "insufficient_distribution") return "建议先加曝光：放到首页推荐、热门位或活动位测试。";
+  if (value === "optimize_candidate") return "建议先优化转化：补试戴图、改标题卖点或强化预约入口。";
+  if (value === "delist_candidate") return "建议减少资源：点击率偏低，可降权观察或准备下架。";
+  if (value === "healthy") return "建议保持投放：继续曝光，并观察预约承接。";
+  return "继续积累真实用户行为后再判断。";
 }
 
 function currentLayout() {
@@ -127,6 +137,8 @@ function showWorkspace(user) {
   document.getElementById("user-name").textContent = user.name;
   document.getElementById("user-meta").textContent = user.email;
   document.getElementById("role-chip").textContent = roleLabel(user.role);
+  document.getElementById("topbar-user-name").textContent = user.name;
+  document.getElementById("topbar-user-role").textContent = roleLabel(user.role);
   renderTabs();
 }
 
@@ -164,7 +176,7 @@ function renderTrendCollectStatus() {
     <article class="surface surface-block trend-progress-card">
       <div class="style-card-head">
         <div>
-          <p class="eyebrow">Collection Status</p>
+          <p class="eyebrow">采集进度</p>
           <h3>${escapeHtml(collect.title || "小红书数据抓取")}</h3>
         </div>
         ${statusPill(collect.status === "done" ? "已完成" : collect.status === "failed" ? "失败" : "进行中", stateName)}
@@ -183,31 +195,31 @@ function renderXhsCollectionHealth() {
   const health = state.xhsStatus;
   if (!health) return "";
   const statusMap = {
-    healthy: ["登录态有效", "approved"],
-    expired: ["登录已过期", "rejected"],
-    missing_cookie: ["缺少登录态", "rejected"],
+    healthy: ["数据源可用", "approved"],
+    expired: ["数据源失效", "rejected"],
+    missing_cookie: ["数据源待维护", "rejected"],
     missing_spider: ["Spider_XHS 未就绪", "rejected"],
     spider_import_failed: ["Spider_XHS 加载失败", "rejected"],
-    unavailable: ["账号矩阵不可用", "rejected"],
-    unhealthy: ["登录态异常", "rejected"],
+    unavailable: ["采集服务不可用", "rejected"],
+    unhealthy: ["数据源异常", "rejected"],
   };
   const [label, stateName] = statusMap[health.status] || ["待检查", "pending"];
   const checks = [
-    ["账号矩阵", health.accountMatrixReachable ? "已连接" : "不可用", health.accountMatrixReachable],
-    ["PC 账号", health.accountId ? `#${health.accountId}` : "未绑定", Boolean(health.accountId)],
-    ["Cookie", health.hasCookie ? "已读取" : "缺失", health.hasCookie],
+    ["采集服务", health.accountMatrixReachable ? "已连接" : "不可用", health.accountMatrixReachable],
+    ["数据源", health.accountId ? "已配置" : "待维护", Boolean(health.accountId)],
+    ["凭证", health.hasCookie ? "已配置" : "待维护", health.hasCookie],
     ["Spider_XHS", health.spiderReady ? "可调用" : "不可用", health.spiderReady],
   ];
   return `
     <article class="surface surface-block xhs-health-card">
       <div class="style-card-head">
         <div>
-          <p class="eyebrow">Spider_XHS Status</p>
+          <p class="eyebrow">采集状态</p>
           <h3>小红书采集状态</h3>
         </div>
         ${statusPill(label, stateName)}
       </div>
-      <p class="lead compact">${escapeHtml(health.message || "等待账号矩阵状态检查。")}</p>
+      <p class="lead compact">${escapeHtml(health.message || "等待后台采集源状态检查。")}</p>
       <div class="health-check-grid">
         ${checks
           .map(
@@ -220,11 +232,9 @@ function renderXhsCollectionHealth() {
           )
           .join("")}
       </div>
-      ${
-        health.loginHealthy
-          ? ""
-          : `<a class="action-link secondary-button" href="${XHS_ACCOUNT_MATRIX_URL}" target="_blank" rel="noreferrer">去账号矩阵重新登录</a>`
-      }
+      <a class="action-link secondary-button" href="/xhs-account/platforms/xhs/accounts" target="_blank" rel="noreferrer">
+        打开小红书采集控制台
+      </a>
     </article>
   `;
 }
@@ -235,7 +245,7 @@ function renderCollectedPosts(posts = []) {
     <section class="surface surface-block">
       <div class="section-head">
         <div>
-          <p class="eyebrow">Crawled Posts</p>
+          <p class="eyebrow">已采集帖子</p>
           <h3>本轮爬取帖子</h3>
         </div>
         <span class="muted">按点赞数从高到低</span>
@@ -276,6 +286,16 @@ function renderTabs() {
       `,
     )
     .join("");
+  sidebarNav.innerHTML = layout.views
+    .map(
+      (item) => `
+        <button class="sidebar-link ${state.activeView === item.id ? "is-active" : ""}" data-view="${item.id}" type="button">
+          <span class="sidebar-link-mark"></span>
+          <span>${escapeHtml(item.label)}</span>
+        </button>
+      `,
+    )
+    .join("");
 }
 
 function syncPageMeta() {
@@ -284,6 +304,8 @@ function syncPageMeta() {
   document.getElementById("page-kicker").textContent = active.kicker;
   document.getElementById("page-title").textContent = active.title;
   document.getElementById("page-description").textContent = active.description;
+  document.getElementById("topbar-range").textContent = state.user?.role === "platform_admin" ? "近 7 天 (06/23 - 06/29)" : "实时工作台";
+  topbarDetailButton.classList.toggle("hidden", active.id !== "overview");
   renderTabs();
 }
 
@@ -305,57 +327,332 @@ function normalizeCommaList(value) {
     .filter(Boolean);
 }
 
-function renderOverview(data, events) {
+function formatPercent(value) {
+  const numeric = Number(value || 0);
+  return `${(numeric * 100).toFixed(1)}%`;
+}
+
+function formatDurationMetric(metric) {
+  if (!metric || metric.averageMs === null || metric.averageMs === undefined) return "待积累";
+  const seconds = metric.averageMs / 1000;
+  return `${seconds.toFixed(1)}s`;
+}
+
+function formatDurationCi(metric) {
+  if (!metric || metric.averageMs === null || metric.averageMs === undefined) return "暂无有效试戴耗时样本";
+  const lower = Number(metric.ciLowerMs || metric.averageMs) / 1000;
+  const upper = Number(metric.ciUpperMs || metric.averageMs) / 1000;
+  return `99% CI ${lower.toFixed(1)}s - ${upper.toFixed(1)}s，样本 ${metric.sampleSize}`;
+}
+
+function formatScoreMetric(metric) {
+  if (!metric || metric.score === null || metric.score === undefined) return "待评测";
+  return `${(Number(metric.score) * 100).toFixed(1)}分`;
+}
+
+function eventBusinessMeta(eventName) {
+  const map = {
+    style_impression: ["款式曝光", "用户在列表、首页或推荐位看到了这款美甲。", "曝光"],
+    style_click: ["查看款式详情", "用户点击进入款式详情，说明图片或标题产生了兴趣。", "兴趣"],
+    style_favorite: ["收藏款式", "用户把款式加入收藏，后续可能再次试戴或预约。", "留存"],
+    search_submit: ["提交搜索", "用户主动搜索款式、风格或门店关键词。", "搜索"],
+    tryon_source_select: ["选择试戴入口", "用户选择从热门、收藏、推荐或上传入口开始试戴。", "试戴"],
+    tryon_start: ["开始 AI 试戴", "用户已发起试戴请求，进入生成链路。", "试戴"],
+    tryon_complete: ["AI 试戴完成", "系统已经生成试戴结果，可用于计算生成耗时和完成率。", "完成"],
+    booking_create: ["提交预约", "用户从款式或试戴结果进入预约，形成转化。", "转化"],
+    booking_confirm: ["确认到店预约", "门店确认预约，表示预约进入履约阶段。", "履约"],
+    tryon_quality_eval: ["试戴质量评测", "人工或模型对试戴结果进行了质量打分。", "质检"],
+    tryon_manual_eval: ["人工质量评测", "人工评估款式还原度和手部一致性。", "质检"],
+    tryon_model_eval: ["模型质量评测", "模型评估试戴效果是否可用于展示。", "质检"],
+  };
+  return map[eventName] || [eventName || "未知事件", "系统记录了一条真实业务行为。", "事件"];
+}
+
+function eventObjectLabel(item) {
+  const parts = [];
+  if (item.styleName) parts.push(`款式 ${item.styleName}`);
+  else if (item.styleId) parts.push("款式名称待同步");
+  if (item.storeId) parts.push(`门店 ${item.storeId}`);
+  if (item.userId) parts.push(`用户 #${item.userId}`);
+  return parts.length ? parts.join(" · ") : "未绑定具体款式";
+}
+
+function sourcePageLabel(value) {
+  const map = {
+    home: "首页",
+    styles: "款式列表",
+    style_detail: "款式详情",
+    favorites: "收藏页",
+    tryon: "AI 试戴页",
+    tryon_upload: "上传手图页",
+    tryon_async: "后台试戴任务",
+    tryon_worker: "后台生成任务",
+    booking: "预约页",
+    booking_detail: "预约详情",
+    styles_search: "搜索结果",
+  };
+  return map[value] || value || "-";
+}
+
+function renderDashboardFunnel(data) {
+  const steps = [
+    ["曝光", data.funnel.impressions, "用户看到款式"],
+    ["点击", data.funnel.clicks, "进入详情"],
+    ["试戴", data.funnel.tryonStarts, "发起 AI 试戴"],
+    ["预约", data.funnel.bookingCreates, "提交到店预约"],
+  ];
+  const maxValue = Math.max(...steps.map(([, value]) => Number(value || 0)), 1);
+  return steps
+    .map(([label, value, hint], index) => {
+      const width = Math.round((Number(value || 0) / maxValue) * 100);
+      const rate =
+        index === 0
+          ? data.rates.clickThroughRate
+          : index === 1
+            ? data.rates.tryonStartRate
+            : index === 2
+              ? data.rates.bookingConversionRate
+              : null;
+      return `
+        <div class="funnel-step">
+          <div class="funnel-meta">
+            <strong>${escapeHtml(label)}</strong>
+            <span>${escapeHtml(hint)}</span>
+          </div>
+          <div class="funnel-bar"><span style="width: ${width}%"></span></div>
+          <b>${escapeHtml(value)}</b>
+          ${rate === null ? "<small>最终转化</small>" : `<small>${formatPercent(rate)}</small>`}
+        </div>
+      `;
+    })
+    .join("");
+}
+
+function renderStyleHealthDistribution(items = []) {
+  const groups = items.reduce((acc, item) => {
+    const label = humanizeHealthLabel(item.healthLabel);
+    acc[label] = (acc[label] || 0) + 1;
+    return acc;
+  }, {});
+  const entries = Object.entries(groups);
+  if (!entries.length) return `<p class="metric-label">暂无款式表现数据。</p>`;
+  const total = entries.reduce((sum, [, count]) => sum + count, 0) || 1;
+  return entries
+    .map(([label, count]) => `
+      <div class="distribution-row">
+        <span>${escapeHtml(label)}</span>
+        <div class="distribution-bar"><span style="width: ${Math.round((count / total) * 100)}%"></span></div>
+        <b>${count}</b>
+      </div>
+    `)
+    .join("");
+}
+
+function requestSummary(items = []) {
+  const now = new Date();
+  const todayKey = now.toISOString().slice(0, 10);
+  let pending = 0;
+  let today = 0;
+  let risk = 0;
+  for (const item of items) {
+    if (item.status === "pending") pending += 1;
+    const createdAt = item.createdAt ? new Date(item.createdAt) : null;
+    if (createdAt && !Number.isNaN(createdAt.getTime()) && createdAt.toISOString().slice(0, 10) === todayKey) {
+      today += 1;
+    }
+    if ((item.reason || "").includes("紧急") || (item.reason || "").includes("投诉") || (item.requestedAction || "") === "delist") {
+      risk += 1;
+    }
+  }
+  return { pending, today, risk };
+}
+
+function overviewActionLabel(item) {
+  if (item.healthLabel === "insufficient_distribution") return "提升曝光";
+  if (item.healthLabel === "optimize_candidate") return "优化转化";
+  if (item.healthLabel === "delist_candidate") return "降权观察";
+  if (item.healthLabel === "healthy") return "继续加推";
+  return "进入运营";
+}
+
+function metricIcon(label) {
+  if (label === "曝光") return "◉";
+  if (label === "点击") return "↗";
+  if (label === "试戴开始") return "✦";
+  if (label === "预约转化") return "⌂";
+  return "•";
+}
+
+function metricScorePercent(metric) {
+  if (!metric || metric.score === null || metric.score === undefined) return null;
+  return Math.max(0, Math.min(100, Math.round(Number(metric.score) * 100)));
+}
+
+function renderTryonExperienceChart(quality) {
+  const duration = quality.averageDuration || {};
+  const averageSeconds = duration.averageMs === null || duration.averageMs === undefined ? null : Number(duration.averageMs) / 1000;
+  const durationTargetSeconds = 10;
+  const durationPercent = averageSeconds === null ? 0 : Math.max(6, Math.min(100, Math.round((averageSeconds / durationTargetSeconds) * 100)));
+  const durationState = averageSeconds === null ? "待积累" : averageSeconds <= durationTargetSeconds ? "流畅" : "偏慢";
+  const styleScore = metricScorePercent(quality.styleFidelity);
+  const consistencyScore = metricScorePercent(quality.manualConsistency);
+  const scoreRows = [
+    ["款式还原度", styleScore, quality.styleFidelity?.sampleSize || 0],
+    ["手部一致性", consistencyScore, quality.manualConsistency?.sampleSize || 0],
+  ];
+  return `
+    <div class="tryon-dashboard">
+      <div class="tryon-speed-card">
+        <div>
+          <span>平均生成耗时</span>
+          <strong>${formatDurationMetric(duration)}</strong>
+          <small>${escapeHtml(formatDurationCi(duration))}</small>
+        </div>
+        <b data-state="${averageSeconds !== null && averageSeconds <= durationTargetSeconds ? "ok" : "warn"}">${durationState}</b>
+      </div>
+      <div class="tryon-duration-bar">
+        <span style="width: ${durationPercent}%"></span>
+      </div>
+      <div class="tryon-target-row">
+        <span>0s</span>
+        <strong>生成耗时参考线</strong>
+        <span>偏慢</span>
+      </div>
+      <div class="tryon-score-list">
+        ${scoreRows
+          .map(
+            ([label, score, sample]) => `
+              <div class="tryon-score-row">
+                <div class="funnel-meta">
+                  <strong>${escapeHtml(label)}</strong>
+                  <span>${sample ? `样本 ${sample}` : "待评测"}</span>
+                </div>
+                <div class="distribution-bar"><span style="width: ${score === null ? 0 : score}%"></span></div>
+                <b>${score === null ? "待评测" : `${score}分`}</b>
+              </div>
+            `,
+          )
+          .join("")}
+      </div>
+    </div>
+  `;
+}
+
+function renderOverview(data) {
+  const quality = data.tryonQuality || {};
+  const privacy = quality.privacyPolicy || {};
+  const requestMeta = requestSummary(data.pendingRequests || []);
   view.innerHTML = `
-    <section class="metrics-grid">
-      <article class="surface surface-block">
-        <p class="eyebrow">曝光</p>
+    <section class="metrics-grid metrics-grid-dashboard">
+      <article class="surface surface-block metric-card">
+        <div class="metric-head">
+          <span class="metric-icon">${metricIcon("曝光")}</span>
+          <div class="metric-title-group">
+            <p class="eyebrow">曝光</p>
+            <span class="metric-trend">真实流量</span>
+          </div>
+        </div>
         <div class="metric-value">${data.funnel.impressions}</div>
-        <p class="metric-label">最近 ${data.windowDays} 天真实曝光事件</p>
+        <p class="metric-label">点击率 ${formatPercent(data.rates.clickThroughRate)}</p>
+        <p class="metric-subtext">用户看到款式</p>
       </article>
-      <article class="surface surface-block">
-        <p class="eyebrow">试戴</p>
+      <article class="surface surface-block metric-card">
+        <div class="metric-head">
+          <span class="metric-icon">${metricIcon("点击")}</span>
+          <div class="metric-title-group">
+            <p class="eyebrow">点击</p>
+            <span class="metric-trend">兴趣触发</span>
+          </div>
+        </div>
+        <div class="metric-value">${data.funnel.clicks}</div>
+        <p class="metric-label">最近 ${data.windowDays} 天真实点击事件</p>
+        <p class="metric-subtext">进入详情</p>
+      </article>
+      <article class="surface surface-block metric-card">
+        <div class="metric-head">
+          <span class="metric-icon">${metricIcon("试戴开始")}</span>
+          <div class="metric-title-group">
+            <p class="eyebrow">试戴开始</p>
+            <span class="metric-trend">进入生成</span>
+          </div>
+        </div>
         <div class="metric-value">${data.funnel.tryonStarts}</div>
-        <p class="metric-label">完成率 ${data.rates.tryonCompleteRate}</p>
+        <p class="metric-label">完成率 ${formatPercent(data.rates.tryonCompleteRate)}</p>
+        <p class="metric-subtext">开始 AI 试戴</p>
       </article>
-      <article class="surface surface-block">
-        <p class="eyebrow">收藏</p>
-        <div class="metric-value">${data.funnel.favorites}</div>
-        <p class="metric-label">收藏率 ${data.rates.favoriteRate}</p>
-      </article>
-      <article class="surface surface-block">
-        <p class="eyebrow">预约</p>
+      <article class="surface surface-block metric-card">
+        <div class="metric-head">
+          <span class="metric-icon">${metricIcon("预约转化")}</span>
+          <div class="metric-title-group">
+            <p class="eyebrow">预约转化</p>
+            <span class="metric-trend">到店意向</span>
+          </div>
+        </div>
         <div class="metric-value">${data.funnel.bookingCreates}</div>
-        <p class="metric-label">成交率 ${data.rates.dealConversionRate}</p>
+        <p class="metric-label">预约转化率 ${formatPercent(data.rates.bookingConversionRate)}</p>
+        <p class="metric-subtext">提交到店预约</p>
       </article>
     </section>
 
-    <section class="split">
-      <article class="surface surface-block">
+    <section class="dashboard-grid overview-dashboard-grid">
+      <article class="surface surface-block dashboard-panel wide-panel">
         <div class="section-head">
           <div>
-            <p class="eyebrow">Style Health</p>
-            <h3>款式表现快照</h3>
+            <p class="eyebrow">用户链路</p>
+            <h3>用户转化漏斗</h3>
+          </div>
+          <button class="secondary-button" type="button" data-open-events>查看行为明细</button>
+        </div>
+        <div class="funnel-chart">${renderDashboardFunnel(data)}</div>
+      </article>
+
+      <article class="surface surface-block dashboard-panel tryon-panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">试戴质检</p>
+            <h3>AI 试戴质检</h3>
+          </div>
+          <span class="status-pill" data-state="${metricScorePercent(quality.styleFidelity) >= 85 ? "approved" : "pending"}">${formatDurationMetric(quality.averageDuration) === "待积累" ? "待积累" : Number((quality.averageDuration?.averageMs || 0) / 1000) <= 10 ? "流畅" : "偏慢"}</span>
+        </div>
+        ${renderTryonExperienceChart(quality)}
+        <p class="metric-label">还原度和一致性来自人工评测或模型评估事件，没有样本时不补虚假分数。</p>
+      </article>
+    </section>
+
+    <section class="overview-lower-grid">
+      <article class="surface surface-block overview-table-panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">款式运营</p>
+            <h3>款式动作建议</h3>
           </div>
         </div>
-        <div class="list-stack">
+        <div class="overview-table">
+          <div class="overview-table-head">
+            <span>款式名称</span>
+            <span>当前问题</span>
+            <span>曝光</span>
+            <span>点击</span>
+            <span>综合分</span>
+            <span>建议动作</span>
+            <span>操作</span>
+          </div>
           ${
             data.styleSnapshots.length
               ? data.styleSnapshots
                   .map(
                     (item) => `
-                      <div class="overview-card surface">
-                        <div class="style-card-head">
-                          <div>
-                            <h4>${escapeHtml(item.styleName)}</h4>
-                            <p class="muted">${escapeHtml(item.styleId)}</p>
-                          </div>
-                          ${statusPill(item.healthLabel, item.healthLabel)}
+                      <div class="overview-table-row">
+                        <div class="overview-cell title-cell">
+                          <strong>${escapeHtml(item.styleName)}</strong>
                         </div>
-                        <div class="stats-row">
-                          <span class="stat-chip">曝光 ${item.impressions}</span>
-                          <span class="stat-chip">点击 ${item.clicks}</span>
-                          <span class="stat-chip">综合分 ${item.compositeRecommendationScore}</span>
+                        <div class="overview-cell">${statusPill(humanizeHealthLabel(item.healthLabel), item.healthLabel)}</div>
+                        <div class="overview-cell">${item.impressions}</div>
+                        <div class="overview-cell">${item.clicks}</div>
+                        <div class="overview-cell">${item.compositeRecommendationScore}</div>
+                        <div class="overview-cell cell-note">${escapeHtml(healthActionText(item.healthLabel))}</div>
+                        <div class="overview-cell">
+                          <button class="primary-button table-action-button" type="button" data-open-style="${escapeHtml(item.styleId)}">${escapeHtml(overviewActionLabel(item))}</button>
                         </div>
                       </div>
                     `,
@@ -366,38 +663,62 @@ function renderOverview(data, events) {
         </div>
       </article>
 
-      <article class="surface surface-block">
-        <div class="section-head">
-          <div>
-            <p class="eyebrow">Events</p>
-            <h3>最新真实事件</h3>
+      <div class="overview-side-stack">
+        <article class="surface surface-block">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">款式结构</p>
+              <h3>款式健康分布</h3>
+            </div>
           </div>
-        </div>
-        <div class="list-stack">
-          ${
-            events.items.length
-              ? events.items
-                  .slice(0, 8)
-                  .map(
-                    (item) => `
-                      <div class="event-card surface">
-                        <div class="style-card-head">
-                          <strong>${escapeHtml(item.eventName)}</strong>
-                          <span class="muted">${escapeHtml(formatDateTime(item.occurredAt))}</span>
-                        </div>
-                        <div class="stats-row">
-                          <span class="stat-chip">款式 ${escapeHtml(item.styleId || "-")}</span>
-                          <span class="stat-chip">门店 ${escapeHtml(item.storeId || "-")}</span>
-                          <span class="stat-chip">页面 ${escapeHtml(item.sourcePage || "-")}</span>
-                        </div>
-                      </div>
-                    `,
-                  )
-                  .join("")
-              : emptyState("暂无真实事件", "这里不会填充任何虚拟埋点。")
-          }
-        </div>
-      </article>
+          <div class="distribution-list">
+            ${renderStyleHealthDistribution(data.styleSnapshots)}
+          </div>
+          <div class="distribution-footer">
+            <strong>共 ${data.styleSnapshots.length} 款式</strong>
+            <button class="link-button" type="button" data-open-style-list>查看全部</button>
+          </div>
+        </article>
+
+        <article class="surface surface-block side-combo-panel">
+          <div class="mini-section">
+            <div class="section-head compact-head">
+              <div>
+                <p class="eyebrow">商家审核</p>
+                <h3>待处理申请</h3>
+              </div>
+              <button class="secondary-button compact-button" type="button" data-open-requests>进入审核</button>
+            </div>
+            <div class="mini-stats-grid">
+              <div class="mini-stat">
+                <strong>${requestMeta.pending}</strong>
+                <span>待审核商家</span>
+              </div>
+              <div class="mini-stat">
+                <strong>${requestMeta.today}</strong>
+                <span>今日新增申请</span>
+              </div>
+              <div class="mini-stat">
+                <strong>${requestMeta.risk}</strong>
+                <span>风险提示</span>
+              </div>
+            </div>
+          </div>
+          <div class="mini-section compliance-section">
+            <div class="section-head compact-head">
+              <div>
+                <p class="eyebrow">数据合规</p>
+                <h3>隐私与脱敏展示</h3>
+              </div>
+            </div>
+            <p class="metric-label">${escapeHtml(privacy.resultDisplay || "运营端仅展示聚合指标。")}</p>
+            <div class="stats-row compact-stats">
+              <span class="stat-chip">${escapeHtml(privacy.heatAnalysis || "款式热度使用埋点聚合。")}</span>
+              <span class="stat-chip">${escapeHtml(privacy.frontendRule || "前端不展示用户级原图。")}</span>
+            </div>
+          </div>
+        </article>
+      </div>
     </section>
   `;
 }
@@ -420,7 +741,7 @@ function renderStyleManagement(items) {
       <article class="surface surface-block">
         <div class="section-head">
           <div>
-            <p class="eyebrow">Catalog</p>
+            <p class="eyebrow">款式库</p>
             <h3>真实款式库</h3>
           </div>
           <button id="create-style-trigger" class="secondary-button" type="button">新建款式</button>
@@ -449,7 +770,7 @@ function renderStyleManagement(items) {
       <article class="surface surface-block style-editor">
         <div class="section-head">
           <div>
-            <p class="eyebrow">Editor</p>
+            <p class="eyebrow">编辑器</p>
             <h3>${state.creatingStyle ? "新建款式" : "编辑款式"}</h3>
           </div>
           ${state.creatingStyle ? '<button id="cancel-create-style" class="ghost-button" type="button">取消</button>' : ""}
@@ -525,7 +846,7 @@ function renderRequestList(items, allowReview) {
               <div class="style-card-head">
                 <div>
                   <p class="eyebrow">${item.requestedAction === "launch" ? "上架申请" : "下架申请"}</p>
-                  <h3>${escapeHtml(item.styleName || item.styleId)}</h3>
+                  <h3>${escapeHtml(item.styleName || "未命名款式")}</h3>
                 </div>
                 ${statusPill(item.status === "approved" ? "已通过" : item.status === "rejected" ? "已驳回" : "待审核", item.status)}
               </div>
@@ -567,22 +888,22 @@ function renderTrendSuggestions(data) {
   view.innerHTML = `
     <section class="metrics-grid">
       <article class="surface surface-block">
-        <p class="eyebrow">Community</p>
+        <p class="eyebrow">社区趋势</p>
         <div class="metric-value">${community.stats.topics || 0}</div>
         <p class="metric-label">已入库的小红书监控话题</p>
       </article>
       <article class="surface surface-block">
-        <p class="eyebrow">Hot Posts</p>
+        <p class="eyebrow">高热帖子</p>
         <div class="metric-value">${community.stats.posts || 0}</div>
         <p class="metric-label">最近一轮采到的有效热帖样本</p>
       </article>
       <article class="surface surface-block">
-        <p class="eyebrow">In-App Styles</p>
+        <p class="eyebrow">站内款式</p>
         <div class="metric-value">${product.stats.styles || 0}</div>
         <p class="metric-label">有真实埋点和图片的在库款式</p>
       </article>
       <article class="surface surface-block">
-        <p class="eyebrow">OpenClaw</p>
+        <p class="eyebrow">智能建议</p>
         <div class="metric-value">${items.length}</div>
         <p class="metric-label">待运营处理的趋势建议</p>
       </article>
@@ -596,14 +917,14 @@ function renderTrendSuggestions(data) {
       <article class="surface surface-block">
         <div class="section-head">
           <div>
-            <p class="eyebrow">OpenClaw</p>
+            <p class="eyebrow">智能建议</p>
             <h3>小红书趋势采集</h3>
           </div>
-          <a class="action-link secondary-button" href="${XHS_ACCOUNT_MATRIX_URL}" target="_blank" rel="noreferrer">
-            登录小红书账号矩阵
+          <a class="action-link secondary-button" href="/xhs-account/platforms/xhs/discovery" target="_blank" rel="noreferrer">
+            采集控制台
           </a>
         </div>
-        <p class="lead compact">先在账号矩阵完成扫码、手机号验证码或 Cookie 导入，系统才会使用真实登录态采集小红书热帖，再交给 OpenClaw 生成运营建议。</p>
+        <p class="lead compact">运营可以在 Nail Mind 直接采集，也可以打开小红书采集控制台管理账号与抓取任务；系统会自动完成控制台授权，不需要输入 operator。</p>
         <form id="trend-collect-form" class="stack-form">
           <label>
             关键词
@@ -630,7 +951,7 @@ function renderTrendSuggestions(data) {
       <article class="surface surface-block">
         <div class="section-head">
           <div>
-            <p class="eyebrow">In-App Trend</p>
+            <p class="eyebrow">站内热度</p>
             <h3>站内热度复核</h3>
           </div>
         </div>
@@ -648,7 +969,7 @@ function renderTrendSuggestions(data) {
       <article class="surface surface-block">
         <div class="section-head">
           <div>
-            <p class="eyebrow">Community Topics</p>
+            <p class="eyebrow">社区话题</p>
             <h3>小红书高热话题</h3>
           </div>
         </div>
@@ -683,7 +1004,7 @@ function renderTrendSuggestions(data) {
       <article class="surface surface-block">
         <div class="section-head">
           <div>
-            <p class="eyebrow">Style Clusters</p>
+            <p class="eyebrow">风格聚类</p>
             <h3>社区风格簇</h3>
           </div>
         </div>
@@ -719,7 +1040,7 @@ function renderTrendSuggestions(data) {
       <article class="surface surface-block">
         <div class="section-head">
           <div>
-            <p class="eyebrow">OpenClaw Picks</p>
+            <p class="eyebrow">精选样本</p>
             <h3>OpenClaw 精选样本</h3>
           </div>
         </div>
@@ -760,7 +1081,7 @@ function renderTrendSuggestions(data) {
       <article class="surface surface-block">
         <div class="section-head">
           <div>
-            <p class="eyebrow">In-App Styles</p>
+            <p class="eyebrow">站内款式</p>
             <h3>站内热款与转化领先款</h3>
           </div>
         </div>
@@ -801,7 +1122,7 @@ function renderTrendSuggestions(data) {
         ? `
           <section class="section-head">
             <div>
-              <p class="eyebrow">Recommendations</p>
+              <p class="eyebrow">运营建议</p>
               <h3>OpenClaw 运营建议</h3>
             </div>
           </section>
@@ -877,31 +1198,165 @@ function renderTrendSuggestions(data) {
 function renderEvents(items) {
   view.innerHTML = items.length
     ? `
+      <section class="surface surface-block">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">行为明细</p>
+            <h3>用户行为明细</h3>
+          </div>
+          <button class="secondary-button" type="button" data-back-overview>返回看板</button>
+        </div>
+        <p class="metric-label">这里展示 App 真实触发的行为流水，用于排查转化链路。事件名已翻译成运营语言，原始技术字段只放在每张卡片底部。</p>
+      </section>
       <section class="event-grid">
         ${items
-          .map(
-            (item) => `
+          .map((item) => {
+            const [title, description, stage] = eventBusinessMeta(item.eventName);
+            return `
               <article class="surface event-card">
                 <div class="style-card-head">
                   <div>
-                    <p class="eyebrow">${escapeHtml(item.eventName)}</p>
-                    <h3>${escapeHtml(item.styleId || item.storeId || "无业务对象")}</h3>
+                    <p class="eyebrow">${escapeHtml(stage)}</p>
+                    <h3>${escapeHtml(title)}</h3>
                   </div>
                   <span class="muted">${escapeHtml(formatDateTime(item.occurredAt))}</span>
                 </div>
+                <p class="metric-label">${escapeHtml(description)}</p>
                 <div class="stats-row">
-                  <span class="stat-chip">页面 ${escapeHtml(item.sourcePage || "-")}</span>
-                  <span class="stat-chip">用户 ${escapeHtml(item.userId || "-")}</span>
+                  <span class="stat-chip">${escapeHtml(eventObjectLabel(item))}</span>
+                  <span class="stat-chip">来源 ${escapeHtml(sourcePageLabel(item.sourcePage))}</span>
                   <span class="stat-chip">设备 ${escapeHtml(item.deviceId || "-")}</span>
                 </div>
-                <pre>${escapeHtml(JSON.stringify(item.payload || {}, null, 2))}</pre>
+                <details>
+                  <summary>查看原始字段</summary>
+                  <pre>${escapeHtml(JSON.stringify({ eventName: item.eventName, sourcePage: item.sourcePage, payload: item.payload || {} }, null, 2))}</pre>
+                </details>
               </article>
-            `,
-          )
+            `;
+          })
           .join("")}
       </section>
     `
-    : emptyState("暂无真实埋点", "没有事件就显示为空，不会生成测试行为。");
+    : `
+      <section class="surface surface-block">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">行为明细</p>
+            <h3>用户行为明细</h3>
+          </div>
+          <button class="secondary-button" type="button" data-back-overview>返回看板</button>
+        </div>
+      </section>
+      ${emptyState("暂无真实埋点", "没有事件就显示为空，不会生成测试行为。")}
+    `;
+}
+
+function qualityScoreValue(record, key) {
+  const manual = record.manualEvaluation || {};
+  const model = record.modelEvaluation || {};
+  return manual[key] ?? model[key] ?? "";
+}
+
+function renderHandConsistencyBreakdown(modelEval = {}) {
+  const breakdown = modelEval.handConsistencyBreakdown || {};
+  const items = [
+    ["手指数量", breakdown.fingerCount],
+    ["皮肤质感", breakdown.skinTexture],
+    ["手型姿态", breakdown.poseConsistency],
+    ["背景保持", breakdown.backgroundPreservation],
+    ["甲面贴合", breakdown.nailPlacement],
+  ];
+  if (!items.some(([, value]) => value !== null && value !== undefined)) {
+    return `<p class="metric-label">手部一致性子项等待模型自动评分。</p>`;
+  }
+  return `
+    <div class="quality-breakdown">
+      ${items
+        .map(([label, value]) => `<span class="stat-chip">${escapeHtml(label)} ${value ?? "待评估"}</span>`)
+        .join("")}
+    </div>
+  `;
+}
+
+function renderTryonQuality(items, modelName) {
+  view.innerHTML = `
+    <section class="surface surface-block">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">质检流程</p>
+          <h3>自动模型评分 + 人工复核</h3>
+        </div>
+        <span class="stat-chip">评估模型 ${escapeHtml(modelName || "qwen3.7-plus")}</span>
+      </div>
+      <p class="metric-label">用户每次完成试戴后，系统会自动评估款式还原度和手部一致性。手部一致性拆分为手指数量、皮肤质感、手型姿态、背景保持、甲面贴合，运营只需复核并可人工改分。</p>
+    </section>
+    ${
+      items.length
+        ? `<section class="quality-grid">
+            ${items
+              .map((item) => {
+                const modelEval = item.modelEvaluation || {};
+                const manualEval = item.manualEvaluation || {};
+                return `
+                  <article class="surface surface-block quality-card" data-quality-record="${escapeHtml(item.id)}">
+                    <div class="section-head">
+                      <div>
+                        <p class="eyebrow">试戴记录</p>
+                        <h3>${escapeHtml(item.styleName || "未命名款式")}</h3>
+                      </div>
+                      <span class="muted">${escapeHtml(formatDateTime(item.createdAt))}</span>
+                    </div>
+                    <div class="quality-images">
+                      <figure>
+                        ${item.handImageUrl ? `<img src="${escapeHtml(item.handImageUrl)}" alt="用户手图" />` : `<div class="style-thumb"></div>`}
+                        <figcaption>用户手图</figcaption>
+                      </figure>
+                      <figure>
+                        ${item.styleImageUrl ? `<img src="${escapeHtml(item.styleImageUrl)}" alt="款式图" />` : `<div class="style-thumb"></div>`}
+                        <figcaption>款式图</figcaption>
+                      </figure>
+                      <figure>
+                        ${item.resultUrl ? `<img src="${escapeHtml(item.resultUrl)}" alt="生成结果" />` : `<div class="style-thumb"></div>`}
+                        <figcaption>生成图</figcaption>
+                      </figure>
+                    </div>
+                    <div class="quality-score-panel">
+                      <div class="stats-row">
+                        <span class="stat-chip">自动还原度 ${modelEval.styleFidelity ?? "评分中"}</span>
+                        <span class="stat-chip">自动一致性 ${modelEval.manualConsistency ?? "评分中"}</span>
+                        <span class="stat-chip">人工还原度 ${manualEval.styleFidelity ?? "未保存"}</span>
+                        <span class="stat-chip">人工一致性 ${manualEval.manualConsistency ?? "未保存"}</span>
+                      </div>
+                      ${renderHandConsistencyBreakdown(modelEval)}
+                      <p class="metric-label">${escapeHtml(manualEval.reviewNote || modelEval.reviewNote || "等待质检。")}</p>
+                    </div>
+                    <form class="quality-review-form" data-quality-form="${escapeHtml(item.id)}">
+                      <div class="editor-grid">
+                        <label>
+                          款式还原度
+                          <input name="styleFidelity" type="number" min="0" max="100" value="${escapeHtml(qualityScoreValue(item, "styleFidelity"))}" placeholder="0-100" required />
+                        </label>
+                        <label>
+                          手部一致性
+                          <input name="manualConsistency" type="number" min="0" max="100" value="${escapeHtml(qualityScoreValue(item, "manualConsistency"))}" placeholder="0-100" required />
+                        </label>
+                      </div>
+                      <label>
+                        质检备注
+                        <textarea name="reviewNote" placeholder="例如：款式细节还原较好，手指数量正常，肤色保持自然。">${escapeHtml(manualEval.reviewNote || "")}</textarea>
+                      </label>
+                      <div class="button-row">
+                        <button class="primary-button" type="submit">保存人工评分</button>
+                      </div>
+                    </form>
+                  </article>
+                `;
+              })
+              .join("")}
+          </section>`
+        : emptyState("暂无试戴记录", "用户完成 AI 试戴后，这里会出现可质检的真实记录。")
+    }
+  `;
 }
 
 function renderMerchantGoods(items) {
@@ -913,17 +1368,17 @@ function renderMerchantGoods(items) {
             const style = item.style || {};
             return `
               <article class="surface merchant-card">
-                ${imageOrFallback(style.imageUrl, style.name || item.styleId)}
+                ${imageOrFallback(style.imageUrl, style.name || "门店款式")}
                 <div class="style-card-head">
                   <div>
-                    <h3>${escapeHtml(style.name || item.styleId)}</h3>
+                    <h3>${escapeHtml(style.name || "未命名款式")}</h3>
                     <p class="muted">${escapeHtml(style.vibe || "门店在售款式")}</p>
                   </div>
                   ${statusPill(item.status === "active" ? "在售" : "已下架", item.status)}
                 </div>
                 <div class="stats-row">
                   <span class="stat-chip">库存 ${escapeHtml(item.inventoryCount)}</span>
-                  <span class="stat-chip">款式编号 ${escapeHtml(item.styleId)}</span>
+                  <span class="stat-chip">门店在售</span>
                 </div>
               </article>
             `;
@@ -966,14 +1421,14 @@ function renderMerchantBookings(items) {
 
 function renderMerchantRequests(items, listingItems) {
   const listingOptions = listingItems
-    .map((item) => `<option value="${escapeHtml(item.styleId)}">${escapeHtml(item.style?.name || item.styleId)}</option>`)
+    .map((item) => `<option value="${escapeHtml(item.styleId)}">${escapeHtml(item.style?.name || "未命名款式")}</option>`)
     .join("");
   view.innerHTML = `
     <section class="split">
       <article class="surface surface-block">
         <div class="section-head">
           <div>
-            <p class="eyebrow">Create Request</p>
+            <p class="eyebrow">创建申请</p>
             <h3>提交上架或下架申请</h3>
           </div>
         </div>
@@ -999,7 +1454,7 @@ function renderMerchantRequests(items, listingItems) {
       <article class="surface surface-block">
         <div class="section-head">
           <div>
-            <p class="eyebrow">History</p>
+            <p class="eyebrow">历史记录</p>
             <h3>申请记录</h3>
           </div>
         </div>
@@ -1012,7 +1467,7 @@ function renderMerchantRequests(items, listingItems) {
                       <div class="request-card surface">
                         <div class="style-card-head">
                           <div>
-                            <h4>${escapeHtml(item.styleName || item.styleId)}</h4>
+                            <h4>${escapeHtml(item.styleName || "未命名款式")}</h4>
                             <p class="muted">${escapeHtml(item.requestedAction === "launch" ? "上架申请" : "下架申请")}</p>
                           </div>
                           ${statusPill(item.status === "approved" ? "已通过" : item.status === "rejected" ? "已驳回" : "待审核", item.status)}
@@ -1042,7 +1497,7 @@ function renderMerchantStore(data) {
       <article class="surface surface-block">
         <div class="section-head">
           <div>
-            <p class="eyebrow">Store</p>
+            <p class="eyebrow">门店</p>
             <h3>${escapeHtml(store.name)}</h3>
           </div>
           ${statusPill(store.isAcceptingBookings ? "可预约" : "暂停接单", store.isAcceptingBookings ? "active" : "inactive")}
@@ -1056,7 +1511,7 @@ function renderMerchantStore(data) {
       <article class="surface surface-block">
         <div class="section-head">
           <div>
-            <p class="eyebrow">Schedule</p>
+            <p class="eyebrow">档期</p>
             <h3>更新营业状态</h3>
           </div>
         </div>
@@ -1080,11 +1535,12 @@ function renderMerchantStore(data) {
 }
 
 async function loadOverview() {
-  const [overview, events] = await Promise.all([
+  const [overview, requests] = await Promise.all([
     api("/admin/analytics/overview"),
-    api("/admin/analytics/events?limit=12"),
+    api("/admin/requests"),
   ]);
-  renderOverview(overview, events);
+  overview.pendingRequests = requests.items || [];
+  renderOverview(overview);
 }
 
 async function loadStyles() {
@@ -1117,8 +1573,18 @@ async function loadTrends() {
 }
 
 async function loadEvents() {
+  document.getElementById("page-kicker").textContent = "行为明细";
+  document.getElementById("page-title").textContent = "用户行为明细";
+  document.getElementById("page-description").textContent = "从经营总览下钻查看真实埋点流水，用运营语言解释每一步用户行为。";
+  document.getElementById("topbar-range").textContent = "最近 60 条";
+  topbarDetailButton.classList.add("hidden");
   const data = await api("/admin/analytics/events?limit=60");
   renderEvents(data.items);
+}
+
+async function loadTryonQuality() {
+  const data = await api("/admin/tryon/quality?limit=20");
+  renderTryonQuality(data.items || [], data.model);
 }
 
 async function loadMerchantGoods() {
@@ -1152,6 +1618,7 @@ async function setView(viewId) {
     if (viewId === "styles") return loadStyles();
     if (viewId === "requests") return loadRequests();
     if (viewId === "trends") return loadTrends();
+    if (viewId === "quality") return loadTryonQuality();
     if (viewId === "events") return loadEvents();
     return;
   }
@@ -1295,13 +1762,12 @@ async function collectTrendSuggestions(form) {
     });
   } catch (error) {
     const message = error.message || "";
-    const isLoginExpired = message.includes("登录已过期") || message.includes("登录态") || message.includes("PC 账号登录");
     state.trendCollect = {
       status: "failed",
-      title: isLoginExpired ? "小红书账号登录已过期" : "小红书数据抓取失败",
+      title: "小红书数据抓取失败",
       posts: [],
-      message: isLoginExpired
-        ? "请点击“登录小红书账号矩阵”，重新完成 PC 账号扫码、手机号验证码或 Cookie 导入；登录成功后再回来采集。"
+      message: message.includes("登录") || message.includes("Cookie") || message.includes("PC 账号")
+        ? "后台小红书采集源需要维护，请联系技术同学更新采集凭证后再试。"
         : message,
       recommendationsCreated: 0,
     };
@@ -1384,6 +1850,33 @@ tabs.addEventListener("click", async (event) => {
   }
 });
 
+sidebarNav.addEventListener("click", async (event) => {
+  const target = event.target;
+  const button = target instanceof HTMLElement ? target.closest("[data-view]") : null;
+  if (!(button instanceof HTMLButtonElement) || !button.dataset.view) return;
+  try {
+    await setView(button.dataset.view);
+  } catch (error) {
+    alert(error.message);
+  }
+});
+
+refreshViewButton.addEventListener("click", async () => {
+  try {
+    await setView(state.activeView || currentLayout().views[0].id);
+  } catch (error) {
+    alert(error.message);
+  }
+});
+
+topbarDetailButton.addEventListener("click", async () => {
+  try {
+    await loadEvents();
+  } catch (error) {
+    alert(error.message);
+  }
+});
+
 view.addEventListener("click", async (event) => {
   const target = event.target;
   if (!(target instanceof HTMLElement)) return;
@@ -1412,6 +1905,53 @@ view.addEventListener("click", async (event) => {
   if (target.id === "quick-toggle-style") {
     try {
       await quickToggleStyle();
+    } catch (error) {
+      alert(error.message);
+    }
+    return;
+  }
+
+  if (target.hasAttribute("data-open-events")) {
+    try {
+      await loadEvents();
+    } catch (error) {
+      alert(error.message);
+    }
+    return;
+  }
+
+  const openStyleId = target.getAttribute("data-open-style");
+  if (openStyleId) {
+    try {
+      state.selectedStyleId = openStyleId;
+      await setView("styles");
+    } catch (error) {
+      alert(error.message);
+    }
+    return;
+  }
+
+  if (target.hasAttribute("data-open-requests")) {
+    try {
+      await setView("requests");
+    } catch (error) {
+      alert(error.message);
+    }
+    return;
+  }
+
+  if (target.hasAttribute("data-open-style-list")) {
+    try {
+      await setView("styles");
+    } catch (error) {
+      alert(error.message);
+    }
+    return;
+  }
+
+  if (target.hasAttribute("data-back-overview")) {
+    try {
+      await setView("overview");
     } catch (error) {
       alert(error.message);
     }
@@ -1465,6 +2005,21 @@ view.addEventListener("submit", async (event) => {
   const target = event.target;
   if (!(target instanceof HTMLFormElement)) return;
   try {
+    if (target.classList.contains("quality-review-form")) {
+      const recordId = target.getAttribute("data-quality-form");
+      const formData = new FormData(target);
+      await api(`/admin/tryon/quality/${encodeURIComponent(recordId)}/manual-review`, {
+        method: "POST",
+        body: JSON.stringify({
+          styleFidelity: Number(formData.get("styleFidelity")),
+          manualConsistency: Number(formData.get("manualConsistency")),
+          reviewNote: String(formData.get("reviewNote") || ""),
+          evaluator: "manual",
+        }),
+      });
+      await loadTryonQuality();
+      return;
+    }
     if (target.id === "style-form") {
       await saveStyleForm(target);
       return;

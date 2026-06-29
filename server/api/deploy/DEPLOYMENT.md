@@ -3,7 +3,6 @@
 目标服务：
 
 - API: `crpi-j8uhehfe8m5fvjw2.cn-hangzhou.personal.cr.aliyuncs.com/s1nglet/nailmain-api:2026-06-03`
-- Worker: `crpi-j8uhehfe8m5fvjw2.cn-hangzhou.personal.cr.aliyuncs.com/s1nglet/nailmind-worker:2026-06-03`
 
 后台入口：
 

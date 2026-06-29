@@ -1,5 +1,7 @@
 from __future__ import annotations
+import hashlib
 import json
+import math
 import os
 import shutil
 import time
@@ -14,8 +16,9 @@ from fastapi import BackgroundTasks, Body, Depends, FastAPI, File, Form, Header,
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
+from PIL import Image, ImageOps
 from pydantic import BaseModel, EmailStr, Field
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from .config import get_settings
@@ -87,6 +90,12 @@ XHS_ACCOUNT_DIST_DIR = Path(
     os.getenv("XHS_ACCOUNT_DIST_DIR", str(Path(get_settings().data_dir) / "XHS_ALL_IN_ONE/frontend/dist"))
 )
 XHS_ACCOUNT_UPSTREAM = os.getenv("XHS_ACCOUNT_UPSTREAM", "http://172.17.0.1:8090")
+XHS_ACCOUNT_MATRIX_USERNAME = os.getenv("XHS_ACCOUNT_MATRIX_USERNAME", "operator")
+XHS_ACCOUNT_MATRIX_PASSWORD = os.getenv("XHS_ACCOUNT_MATRIX_PASSWORD", "")
+XHS_ACCOUNT_MATRIX_PASSWORD_FILE = os.getenv(
+    "XHS_ACCOUNT_MATRIX_PASSWORD_FILE",
+    str(Path(get_settings().data_dir) / "XHS_ALL_IN_ONE/data/operator-password.txt"),
+)
 
 settings = get_settings()
 app_logger = setup_logging(settings.logs_dir)
@@ -111,7 +120,57 @@ def _xhs_index_html() -> HTMLResponse:
     html = html.replace('src="/assets/', 'src="/xhs-account/assets/')
     html = html.replace('href="/assets/', 'href="/xhs-account/assets/')
     html = html.replace('href="/favicon.svg"', 'href="/xhs-account/favicon.svg"')
+    sso_script = _xhs_account_sso_script()
+    if sso_script and "</head>" in html:
+        html = html.replace("</head>", f"{sso_script}</head>", 1)
     return HTMLResponse(html)
+
+
+def _xhs_account_password() -> str:
+    if XHS_ACCOUNT_MATRIX_PASSWORD:
+        return XHS_ACCOUNT_MATRIX_PASSWORD
+    password_file = Path(XHS_ACCOUNT_MATRIX_PASSWORD_FILE)
+    if password_file.exists():
+        return password_file.read_text(encoding="utf-8").strip()
+    return ""
+
+
+def _xhs_account_sso_script() -> str:
+    payload = _xhs_account_sso_payload()
+    if not payload:
+        return ""
+    access_token = payload.get("access_token")
+    refresh_token = payload.get("refresh_token")
+    if not access_token and not refresh_token:
+        return ""
+    access_json = json.dumps(str(access_token or ""))
+    refresh_json = json.dumps(str(refresh_token or ""))
+    return (
+        "<script>"
+        "try{"
+        f"window.localStorage.setItem('spider_xhs_access_token',{access_json});"
+        f"window.localStorage.setItem('spider_xhs_refresh_token',{refresh_json});"
+        "window.__NAILMIND_XHS_SSO__=true;"
+        "}catch(e){}"
+        "</script>"
+    )
+
+
+def _xhs_account_sso_payload() -> dict[str, Any]:
+    password = _xhs_account_password()
+    if not password:
+        return {}
+    try:
+        response = requests.post(
+            f"{XHS_ACCOUNT_UPSTREAM.rstrip('/')}/api/auth/login",
+            json={"username": XHS_ACCOUNT_MATRIX_USERNAME, "password": password},
+            timeout=15,
+        )
+        response.raise_for_status()
+        payload = response.json()
+    except requests.RequestException:
+        return {}
+    return payload if isinstance(payload, dict) else {}
 
 
 def _proxy_xhs_response(path: str, request: Request, body: bytes) -> Response:
@@ -157,6 +216,10 @@ def xhs_account_assets(path: str):
         script = asset_file.read_text(encoding="utf-8")
         script = script.replace('baseURL:"/api"', 'baseURL:"/xhs-account/api"')
         script = script.replace('fetch("/api/', 'fetch("/xhs-account/api/')
+        payload = _xhs_account_sso_payload()
+        access_token = payload.get("access_token") if isinstance(payload, dict) else ""
+        if access_token:
+            script = script.replace("let I0=null;", f"let I0={json.dumps(str(access_token))};", 1)
         return Response(script, media_type="application/javascript")
     return FileResponse(asset_file)
 
@@ -290,6 +353,13 @@ class ReviewRequest(BaseModel):
     reviewNote: str = ""
 
 
+class TryOnQualityReviewRequest(BaseModel):
+    styleFidelity: float = Field(ge=0, le=100)
+    manualConsistency: float = Field(ge=0, le=100)
+    reviewNote: str = ""
+    evaluator: str = "manual"
+
+
 class TrendImportRequest(BaseModel):
     title: str
     clusterLabel: str
@@ -341,6 +411,61 @@ def public_file_url(local_path: str | None) -> str | None:
 
 def tryon_result_url(filename: str) -> str:
     return f"{settings.public_base_url.rstrip('/')}/files/results/{filename}"
+
+
+def upload_file_url(object_key: str | None) -> str | None:
+    if not object_key:
+        return None
+    return f"{settings.public_base_url.rstrip('/')}/files/uploads/{object_key.lstrip('/')}"
+
+
+def file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def compressed_image_path(source_path: Path, *, max_side: int | None = None, quality: int = 88) -> Path:
+    max_side = max_side or settings.tryon_optimize_max_side
+    cache_dir = Path(settings.data_dir) / "optimized"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    digest = file_sha256(source_path)
+    target_path = cache_dir / f"{digest[:24]}_{max_side}.jpg"
+    if target_path.exists() and target_path.stat().st_size > 1000:
+        return target_path
+    with Image.open(source_path) as image:
+        image = ImageOps.exif_transpose(image)
+        image.thumbnail((max_side, max_side), Image.Resampling.LANCZOS)
+        if image.mode not in {"RGB", "L"}:
+            image = image.convert("RGB")
+        elif image.mode == "L":
+            image = image.convert("RGB")
+        image.save(target_path, format="JPEG", quality=quality, optimize=True, progressive=True)
+    return target_path
+
+
+def save_upload_as_optimized_image(file: UploadFile, target_path: Path, *, max_side: int | None = None) -> None:
+    max_side = max_side or settings.tryon_optimize_max_side
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        with Image.open(file.file) as image:
+            image = ImageOps.exif_transpose(image)
+            image.thumbnail((max_side, max_side), Image.Resampling.LANCZOS)
+            if image.mode not in {"RGB", "L"}:
+                image = image.convert("RGB")
+            elif image.mode == "L":
+                image = image.convert("RGB")
+            image.save(target_path, format="JPEG", quality=88, optimize=True, progressive=True)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"invalid image file: {exc}") from exc
+
+
+def tryon_cache_filename(hand_path: Path, asset: NailStyleAsset, selected_length: str, selected_shape: str) -> str:
+    hand_digest = file_sha256(hand_path)[:16]
+    style_name = f"style_{asset.sequence_no:02d}"
+    return f"hand_{hand_digest}+{style_name}+{selected_length}+{selected_shape}.png"
 
 
 @app.middleware("http")
@@ -576,7 +701,11 @@ def try_on_job_response(job: TryOnJob) -> dict[str, Any]:
 def extract_job_code_from_result_url(result_url: str) -> str | None:
     marker = "/api/try-on/jobs/"
     if marker not in result_url:
-        return None
+        try:
+            filename = result_url.rsplit("/", 1)[-1]
+            return Path(filename).stem if filename else None
+        except Exception:
+            return None
     try:
         tail = result_url.split(marker, 1)[1]
         return tail.split("/", 1)[0]
@@ -620,6 +749,8 @@ def process_tryon_job(job_code: str) -> None:
             db.commit()
 
             style_path = ensure_style_image_local(db, asset)
+            optimized_source_path = compressed_image_path(Path(source_path))
+            optimized_style_path = compressed_image_path(Path(style_path))
             db.commit()
 
             job.stage = "rendering"
@@ -630,9 +761,17 @@ def process_tryon_job(job_code: str) -> None:
 
             result_filename = f"{job.job_code}.png"
             result_path = settings.results_dir / result_filename
-            success, message = generate_tryon_image(str(source_path), str(style_path), str(result_path))
-            if not success:
-                raise RuntimeError(message)
+            cache_filename = tryon_cache_filename(optimized_source_path, asset, job.selected_length, job.selected_shape)
+            cache_path = settings.results_dir / cache_filename
+            source_label = "bailian-cached"
+            if cache_path.exists() and cache_path.stat().st_size > 1000:
+                shutil.copyfile(cache_path, result_path)
+            else:
+                success, message = generate_tryon_image(str(optimized_source_path), str(optimized_style_path), str(cache_path))
+                if not success:
+                    raise RuntimeError(message)
+                shutil.copyfile(cache_path, result_path)
+                source_label = "bailian-live"
 
             duration_ms = int((time.perf_counter() - started_at) * 1000)
             job.result_image_key = result_filename
@@ -642,20 +781,20 @@ def process_tryon_job(job_code: str) -> None:
             job.completed_at = utcnow()
             job.updated_at = utcnow()
             db.add(job)
-            db.add(
-                TryOnRecord(
-                    user_id=job.user_id,
-                    hand_image_id=None,
-                    nail_style_asset_id=asset.id,
-                    result_url=tryon_result_url(result_filename),
-                    source="async-job",
-                    duration_ms=duration_ms,
-                    selected_length=job.selected_length,
-                    selected_shape=job.selected_shape,
-                )
+            record = TryOnRecord(
+                user_id=job.user_id,
+                hand_image_id=None,
+                nail_style_asset_id=asset.id,
+                result_url=tryon_result_url(result_filename),
+                source=source_label,
+                duration_ms=duration_ms,
+                selected_length=job.selected_length,
+                selected_shape=job.selected_shape,
             )
+            db.add(record)
             log_event(db, "tryon_complete", user_id=job.user_id, style_id=job.style_id, source_page="tryon_async")
             db.commit()
+            auto_evaluate_tryon_quality(record.id)
             log_event_json(
                 app_logger,
                 "tryon_async_completed",
@@ -664,6 +803,7 @@ def process_tryon_job(job_code: str) -> None:
                 styleId=job.style_id,
                 durationMs=duration_ms,
                 resultImageKey=result_filename,
+                cacheKey=cache_filename,
             )
         except Exception as exc:
             db.rollback()
@@ -701,6 +841,308 @@ def try_on_record_response(db: Session, record: TryOnRecord) -> dict[str, Any]:
         "selectedShape": record.selected_shape,
         "createdAt": record.created_at.isoformat(),
     }
+
+
+def latest_tryon_quality_payload(db: Session, record_id: int, evaluator: str | None = None) -> dict[str, Any] | None:
+    stmt = (
+        select(EventLog)
+        .where(EventLog.event_name == "tryon_quality_eval")
+        .order_by(EventLog.occurred_at.desc())
+    )
+    events = db.scalars(stmt.limit(300)).all()
+    for event in events:
+        payload = loads_json(event.payload_json, {}) if event.payload_json else {}
+        if payload.get("tryOnRecordId") != record_id:
+            continue
+        if evaluator and payload.get("evaluator") != evaluator:
+            continue
+        return payload
+    return None
+
+
+def tryon_quality_record_to_admin_dict(db: Session, record: TryOnRecord) -> dict[str, Any]:
+    asset = db.get(NailStyleAsset, record.nail_style_asset_id)
+    hand = db.get(HandImage, record.hand_image_id) if record.hand_image_id else None
+    style = find_style(db, asset.style_code, include_inactive=True) if asset else None
+    hand_image_url = public_file_url(hand.local_path) if hand and hand.local_path else (hand.image_url if hand else None)
+    if not hand_image_url:
+        job_code = extract_job_code_from_result_url(record.result_url)
+        if job_code:
+            filename = record.result_url.rsplit("/", 1)[-1]
+            job = db.scalar(
+                select(TryOnJob)
+                .where(
+                    or_(
+                        TryOnJob.job_code == job_code,
+                        TryOnJob.result_image_key == filename,
+                    )
+                )
+                .order_by(TryOnJob.created_at.desc())
+            )
+            if job:
+                hand_image_url = upload_file_url(job.source_image_key)
+    manual_payload = latest_tryon_quality_payload(db, record.id, "manual")
+    model_payload = latest_tryon_quality_payload(db, record.id, "model")
+    return {
+        "id": record.id,
+        "displayId": f"tryon-record-{record.id:04d}",
+        "userId": record.user_id,
+        "styleId": asset.style_code if asset else "",
+        "styleName": style.name if style else (asset.display_name if asset else "未命名款式"),
+        "styleImageUrl": public_file_url(asset.local_image_path) if asset and asset.local_image_path else (asset.enhanced_url if asset else None),
+        "handImageUrl": hand_image_url,
+        "resultUrl": record.result_url,
+        "durationMs": record.duration_ms,
+        "source": record.source,
+        "createdAt": record.created_at.isoformat(),
+        "modelEvaluation": model_payload,
+        "manualEvaluation": manual_payload,
+    }
+
+
+def extract_json_object(text: str) -> dict[str, Any]:
+    clean = text.strip()
+    if clean.startswith("```"):
+        clean = clean.removeprefix("```json").removeprefix("```").strip()
+        clean = clean.removesuffix("```").strip()
+    start = clean.find("{")
+    end = clean.rfind("}")
+    if start >= 0 and end > start:
+        clean = clean[start : end + 1]
+    data = json.loads(clean)
+    if not isinstance(data, dict):
+        raise ValueError("model response is not a JSON object")
+    return data
+
+
+def bounded_score(value: Any) -> float:
+    score = float(value)
+    return max(0.0, min(100.0, score))
+
+
+def optional_bounded_score(value: Any) -> float | None:
+    if value is None:
+        return None
+    try:
+        return bounded_score(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def average_available_scores(values: list[float | None]) -> float:
+    scores = [value for value in values if value is not None]
+    if not scores:
+        return 0.0
+    return round(sum(scores) / len(scores), 2)
+
+
+def strict_consistency_score(values: list[float | None]) -> float:
+    scores = [value for value in values if value is not None]
+    if not scores:
+        return 0.0
+    average = sum(scores) / len(scores)
+    weakest = min(scores)
+    return round(average * 0.35 + weakest * 0.65, 2)
+
+
+def tryon_quality_prompt() -> str:
+    return (
+        "你是美甲 AI 试戴质检员。请严格对比三张图：图1是用户原手图，图2是目标美甲款式图，图3是 AI 试戴生成图。"
+        "只评估试戴质量，不要评价用户长相或身份。"
+        "评分必须严格且大胆给低分，不要给人情分。只要发现明显不一致，就给对应子项低分。"
+        "评分规则：完全一致才可给90以上；轻微不一致给70-85；明显不一致给40-65；严重错误给0-35。"
+        "如果手指数量错误、多手指/少手指/指节畸形，fingerCountScore必须低于35，manualConsistency必须低于50。"
+        "如果肤色、皮肤纹理、手型姿态或背景与原手图明显变化，对应子项必须低于65。"
+        "如果甲面贴错位置、覆盖到皮肤、透视不自然或边缘漂浮，nailPlacementScore必须低于65。"
+        "manualConsistency必须按最差子项保守合并，不能简单平均；任一子项低于60时总分通常不得高于70。"
+        "返回 JSON，字段必须是："
+        "styleFidelity(0-100数字，款式颜色/图案/质感还原度)，"
+        "fingerCountScore(0-100数字，手指数量是否正确、是否多指少指)，"
+        "skinTextureScore(0-100数字，肤色、皮肤纹理、光照是否保持原手图状态)，"
+        "poseConsistencyScore(0-100数字，手型、姿态、比例是否保持原图一致)，"
+        "backgroundPreservationScore(0-100数字，背景和非指甲区域是否被异常修改)，"
+        "nailPlacementScore(0-100数字，甲面位置、边缘贴合、透视是否自然)，"
+        "manualConsistency(0-100数字，按以上五项综合后的手部一致性总分)，"
+        "reviewNote(中文，80字以内，指出主要优点和问题)。不要输出 Markdown。"
+    )
+
+
+def model_content_to_text(content: Any) -> str:
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        chunks: list[str] = []
+        for part in content:
+            if isinstance(part, dict):
+                chunks.append(str(part.get("text") or part.get("content") or ""))
+            else:
+                chunks.append(str(part))
+        return "".join(chunks)
+    return str(content)
+
+
+def call_dashscope_compatible(prompt: str, hand_url: str, style_url: str, result_url: str) -> dict[str, Any]:
+    payload = {
+        "model": settings.tryon_quality_eval_model,
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": prompt},
+                    {"type": "image_url", "image_url": {"url": hand_url}},
+                    {"type": "image_url", "image_url": {"url": style_url}},
+                    {"type": "image_url", "image_url": {"url": result_url}},
+                ],
+            }
+        ],
+        "temperature": 0.1,
+        "stream": False,
+        "response_format": {"type": "json_object"},
+        "extra_body": {"enable_thinking": False},
+    }
+    headers = {
+        "Authorization": f"Bearer {settings.dashscope_api_key}",
+        "Content-Type": "application/json",
+    }
+    response = requests.post(
+        settings.tryon_quality_eval_api_url,
+        json=payload,
+        headers=headers,
+        timeout=settings.tryon_quality_eval_timeout_seconds,
+    )
+    response.raise_for_status()
+    body = response.json()
+    content = body["choices"][0]["message"]["content"]
+    return extract_json_object(model_content_to_text(content))
+
+
+def call_dashscope_native(prompt: str, hand_url: str, style_url: str, result_url: str) -> dict[str, Any]:
+    payload = {
+        "model": settings.tryon_quality_eval_model,
+        "input": {
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {"image": hand_url},
+                        {"image": style_url},
+                        {"image": result_url},
+                        {"text": prompt},
+                    ],
+                }
+            ]
+        },
+        "parameters": {"temperature": 0.1},
+    }
+    headers = {
+        "Authorization": f"Bearer {settings.dashscope_api_key}",
+        "Content-Type": "application/json",
+    }
+    response = requests.post(
+        settings.tryon_quality_eval_native_api_url,
+        json=payload,
+        headers=headers,
+        timeout=settings.tryon_quality_eval_timeout_seconds,
+    )
+    response.raise_for_status()
+    body = response.json()
+    content = body["output"]["choices"][0]["message"]["content"]
+    return extract_json_object(model_content_to_text(content))
+
+
+def evaluate_tryon_quality_with_model(record: TryOnRecord, record_payload: dict[str, Any]) -> dict[str, Any]:
+    if not settings.dashscope_api_key:
+        raise HTTPException(status_code=503, detail="DASHSCOPE_API_KEY is not configured")
+    hand_url = record_payload.get("handImageUrl")
+    style_url = record_payload.get("styleImageUrl")
+    result_url = record_payload.get("resultUrl")
+    if not hand_url or not style_url or not result_url:
+        raise HTTPException(status_code=400, detail="missing hand/style/result image url for model evaluation")
+
+    prompt = tryon_quality_prompt()
+    try:
+        try:
+            parsed = call_dashscope_compatible(prompt, hand_url, style_url, result_url)
+        except requests.HTTPError as exc:
+            status_code = exc.response.status_code if exc.response is not None else None
+            if status_code != 404:
+                raise
+            parsed = call_dashscope_native(prompt, hand_url, style_url, result_url)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"qwen quality evaluation failed: {exc}") from exc
+
+    return {
+        "tryOnRecordId": record.id,
+        "evaluator": "model",
+        "model": settings.tryon_quality_eval_model,
+        "styleFidelity": bounded_score(parsed.get("styleFidelity")),
+        "manualConsistency": bounded_score(
+            min(
+                optional_bounded_score(parsed.get("manualConsistency")) or 100.0,
+                strict_consistency_score(
+                    [
+                        optional_bounded_score(parsed.get("fingerCountScore")),
+                        optional_bounded_score(parsed.get("skinTextureScore")),
+                        optional_bounded_score(parsed.get("poseConsistencyScore")),
+                        optional_bounded_score(parsed.get("backgroundPreservationScore")),
+                        optional_bounded_score(parsed.get("nailPlacementScore")),
+                    ]
+                ),
+            )
+        ),
+        "handConsistencyBreakdown": {
+            "fingerCount": optional_bounded_score(parsed.get("fingerCountScore")),
+            "skinTexture": optional_bounded_score(parsed.get("skinTextureScore")),
+            "poseConsistency": optional_bounded_score(parsed.get("poseConsistencyScore")),
+            "backgroundPreservation": optional_bounded_score(parsed.get("backgroundPreservationScore")),
+            "nailPlacement": optional_bounded_score(parsed.get("nailPlacementScore")),
+        },
+        "reviewNote": str(parsed.get("reviewNote") or "模型已完成试戴质量初评。")[:200],
+        "evaluatedAt": utcnow().isoformat(),
+    }
+
+
+def write_model_quality_evaluation(db: Session, record: TryOnRecord, *, source_page: str) -> dict[str, Any]:
+    existing = latest_tryon_quality_payload(db, record.id, "model")
+    if existing and existing.get("handConsistencyBreakdown"):
+        return existing
+    asset = db.get(NailStyleAsset, record.nail_style_asset_id)
+    record_payload = tryon_quality_record_to_admin_dict(db, record)
+    payload = evaluate_tryon_quality_with_model(record, record_payload)
+    log_event(
+        db,
+        "tryon_quality_eval",
+        user_id=record.user_id,
+        style_id=asset.style_code if asset else None,
+        source_page=source_page,
+        payload=payload,
+    )
+    db.commit()
+    return payload
+
+
+def auto_evaluate_tryon_quality(record_id: int) -> None:
+    db = SessionLocal()
+    try:
+        record = db.get(TryOnRecord, record_id)
+        if not record:
+            return
+        payload = write_model_quality_evaluation(db, record, source_page="auto_quality_model")
+        log_event_json(
+            app_logger,
+            "tryon_quality_model_evaluated",
+            recordId=record_id,
+            model=payload.get("model"),
+            styleFidelity=payload.get("styleFidelity"),
+            manualConsistency=payload.get("manualConsistency"),
+        )
+    except Exception as exc:
+        db.rollback()
+        log_event_json(app_logger, "tryon_quality_model_failed", recordId=record_id, error=str(exc))
+    finally:
+        db.close()
 
 
 def fetch_binary_source(path_or_url: str) -> bytes:
@@ -1348,6 +1790,91 @@ def aggregate_event_counts(db: Session, *, style_id: str | None = None, days: in
     return counts
 
 
+def average_score(values: list[float]) -> dict[str, Any]:
+    if not values:
+        return {
+            "score": None,
+            "sampleSize": 0,
+            "status": "pending_evaluation",
+            "label": "待评测",
+        }
+    score = round(sum(values) / len(values), 2)
+    return {
+        "score": score,
+        "sampleSize": len(values),
+        "status": "measured",
+        "label": f"{score:.2f}",
+    }
+
+
+def read_eval_score(payload: dict[str, Any], keys: list[str]) -> float | None:
+    for key in keys:
+        value = payload.get(key)
+        if value is None:
+            continue
+        try:
+            score = float(value)
+        except (TypeError, ValueError):
+            continue
+        if score > 1:
+            score = score / 100
+        return max(0.0, min(score, 1.0))
+    return None
+
+
+def build_tryon_quality_metrics(db: Session, *, days: int = 7) -> dict[str, Any]:
+    since = utcnow() - timedelta(days=days)
+    records = db.scalars(
+        select(TryOnRecord).where(TryOnRecord.created_at >= since, TryOnRecord.duration_ms > 0)
+    ).all()
+    durations = [record.duration_ms for record in records]
+    sample_size = len(durations)
+    average_ms = round(sum(durations) / sample_size, 2) if sample_size else None
+    ci_half_width_ms = None
+    confidence_level = 0.99
+    if sample_size > 1:
+        mean = sum(durations) / sample_size
+        variance = sum((value - mean) ** 2 for value in durations) / (sample_size - 1)
+        ci_half_width_ms = round(2.576 * math.sqrt(variance) / math.sqrt(sample_size), 2)
+
+    eval_events = db.scalars(
+        select(EventLog)
+        .where(EventLog.occurred_at >= since, EventLog.event_name.in_(["tryon_quality_eval", "tryon_manual_eval", "tryon_model_eval"]))
+        .order_by(EventLog.occurred_at.desc())
+    ).all()
+    fidelity_scores: list[float] = []
+    consistency_scores: list[float] = []
+    for event in eval_events:
+        payload = loads_json(event.payload_json, {}) if event.payload_json else {}
+        fidelity = read_eval_score(payload, ["styleFidelity", "fidelity", "restoreScore", "style_restore_score", "款式还原度"])
+        consistency = read_eval_score(payload, ["manualConsistency", "consistency", "handConsistency", "manual_consistency", "手工一致性"])
+        if fidelity is not None:
+            fidelity_scores.append(fidelity)
+        if consistency is not None:
+            consistency_scores.append(consistency)
+
+    return {
+        "windowDays": days,
+        "averageDuration": {
+            "averageMs": average_ms,
+            "sampleSize": sample_size,
+            "confidenceLevel": confidence_level,
+            "ciLowerMs": round(max(0, average_ms - ci_half_width_ms), 2) if average_ms is not None and ci_half_width_ms is not None else average_ms,
+            "ciUpperMs": round(average_ms + ci_half_width_ms, 2) if average_ms is not None and ci_half_width_ms is not None else average_ms,
+            "ciHalfWidthMs": ci_half_width_ms,
+            "status": "measured" if sample_size else "no_tryon_records",
+        },
+        "styleFidelity": average_score(fidelity_scores),
+        "manualConsistency": average_score(consistency_scores),
+        "evaluationSource": "人工评测/模型评估事件 tryon_quality_eval、tryon_manual_eval、tryon_model_eval",
+        "privacyPolicy": {
+            "resultDisplay": "运营端仅展示脱敏聚合指标，不展示用户原始手图或可能包含面部信息的试戴图。",
+            "heatAnalysis": "款式热度通过曝光、点击、试戴、预约等埋点聚合统计。",
+            "frontendRule": "前端面向运营只展示计数、比例、均值和分数，不直接暴露用户级图片资产。",
+        },
+    }
+
+
 def build_style_trend_summary(db: Session, style_code: str) -> dict[str, Any]:
     daily_rows = db.scalars(
         select(StyleMetricsDaily)
@@ -1809,10 +2336,8 @@ def upload_hand_image(file: UploadFile = File(...), user: User = Depends(get_cur
         raise HTTPException(status_code=400, detail="unsupported image format")
     next_id = (db.scalar(select(func.max(HandImage.id))) or 0) + 1
     hand_code = f"user_{next_id:04d}"
-    target_path = settings.uploads_dir / f"{hand_code}{suffix}"
-    target_path.parent.mkdir(parents=True, exist_ok=True)
-    with target_path.open("wb") as output:
-        shutil.copyfileobj(file.file, output)
+    target_path = settings.uploads_dir / f"{hand_code}.jpg"
+    save_upload_as_optimized_image(file, target_path)
     hand = HandImage(
         hand_code=hand_code,
         image_url=public_file_url(str(target_path)) or f"/files/uploads/{target_path.name}",
@@ -1831,7 +2356,12 @@ def upload_hand_image(file: UploadFile = File(...), user: User = Depends(get_cur
 
 
 @app.post("/api/tryon/try-on")
-def sync_try_on(payload: SyncTryOnRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> dict[str, Any]:
+def sync_try_on(
+    payload: SyncTryOnRequest,
+    background_tasks: BackgroundTasks,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
     asset = db.get(NailStyleAsset, payload.styleId)
     if not asset:
         raise HTTPException(status_code=404, detail="style asset not found")
@@ -1844,18 +2374,19 @@ def sync_try_on(payload: SyncTryOnRequest, user: User = Depends(get_current_user
     if not hand:
         raise HTTPException(status_code=404, detail="hand image not found")
 
-    hand_name = hand.hand_code
-    style_name = f"style_{asset.sequence_no:02d}"
-    result_filename = f"{hand_name}+{style_name}+{payload.selectedLength}+{payload.selectedShape}.png"
+    hand_path = ensure_hand_image_local(db, hand)
+    style_path = ensure_style_image_local(db, asset)
+    optimized_hand_path = compressed_image_path(Path(hand_path))
+    optimized_style_path = compressed_image_path(Path(style_path))
+    db.commit()
+
+    result_filename = tryon_cache_filename(optimized_hand_path, asset, payload.selectedLength, payload.selectedShape)
     result_path = settings.results_dir / result_filename
     source = "bailian-cached" if result_path.exists() and result_path.stat().st_size > 1000 else ""
     started_at = datetime.now()
 
     if not source:
-        style_path = ensure_style_image_local(db, asset)
-        hand_path = ensure_hand_image_local(db, hand)
-        db.commit()
-        success, message = generate_tryon_image(str(hand_path), str(style_path), str(result_path))
+        success, message = generate_tryon_image(str(optimized_hand_path), str(optimized_style_path), str(result_path))
         if not success:
             log_event_json(
                 app_logger,
@@ -1863,10 +2394,10 @@ def sync_try_on(payload: SyncTryOnRequest, user: User = Depends(get_current_user
                 userId=user.id,
                 handId=hand.hand_code,
                 styleId=asset.style_code,
-                provider="dashscope",
+                provider="bailian",
                 reason=message,
             )
-            raise HTTPException(status_code=502, detail=f"large-model try-on failed: {message}")
+            raise HTTPException(status_code=502, detail=f"bailian try-on failed: {message}")
         source = "bailian-live"
 
     duration_ms = int((datetime.now() - started_at).total_seconds() * 1000)
@@ -1891,6 +2422,8 @@ def sync_try_on(payload: SyncTryOnRequest, user: User = Depends(get_current_user
         payload={"source": source, "durationMs": duration_ms},
     )
     db.commit()
+    db.refresh(record)
+    background_tasks.add_task(auto_evaluate_tryon_quality, record.id)
     log_event_json(
         app_logger,
         "tryon_completed",
@@ -1902,8 +2435,9 @@ def sync_try_on(payload: SyncTryOnRequest, user: User = Depends(get_current_user
         selectedLength=payload.selectedLength,
         selectedShape=payload.selectedShape,
         resultFile=result_filename,
+        cacheKey=result_filename,
     )
-    return {"result_url": result_url, "duration_ms": duration_ms, "style_name": asset.display_name, "source": source}
+    return {"result_url": result_url, "duration_ms": duration_ms, "style_name": asset.display_name, "source": source, "cache_key": result_filename}
 
 
 @app.get("/api/tryon/history")
@@ -1925,11 +2459,9 @@ def tryon_upload(file: UploadFile = File(...), user: User = Depends(get_current_
     suffix = Path(file.filename or "upload.jpg").suffix.lower()
     if suffix not in {".jpg", ".jpeg", ".png"}:
         raise HTTPException(status_code=400, detail="only .jpg, .jpeg and .png files are supported")
-    object_key = f"user-{user.id:03d}/{int(utcnow().timestamp() * 1_000_000)}{suffix}"
+    object_key = f"user-{user.id:03d}/{int(utcnow().timestamp() * 1_000_000)}.jpg"
     target = settings.uploads_dir / object_key
-    target.parent.mkdir(parents=True, exist_ok=True)
-    with target.open("wb") as output:
-        shutil.copyfileobj(file.file, output)
+    save_upload_as_optimized_image(file, target)
     user.last_upload_key = object_key
     db.add(user)
     db.commit()
@@ -2405,6 +2937,7 @@ def reject_request(request_id: str, payload: ReviewRequest, user: User = Depends
 @app.get("/admin/analytics/overview")
 def admin_analytics_overview(_: User = Depends(require_platform_admin), db: Session = Depends(get_db)) -> dict[str, Any]:
     counts = aggregate_event_counts(db, days=7)
+    tryon_quality = build_tryon_quality_metrics(db, days=7)
     style_rows = [style for style in db.scalars(select(Style).order_by(Style.code)).all() if is_real_workspace_style(db, style)]
     style_snapshots = []
     for style in style_rows:
@@ -2439,6 +2972,7 @@ def admin_analytics_overview(_: User = Depends(require_platform_admin), db: Sess
             "dealConversionRate": round(counts["booking_confirm"] / counts["style_click"], 4) if counts["style_click"] else 0.0,
         },
         "styleSnapshots": style_snapshots,
+        "tryonQuality": tryon_quality,
     }
 
 
@@ -2457,6 +2991,11 @@ def admin_analytics_events(
     if style_id:
         stmt = stmt.where(EventLog.style_id == style_id)
     items = db.scalars(stmt).all()
+    style_codes = {item.style_id for item in items if item.style_id}
+    styles_by_code = {
+        style.code: style
+        for style in db.scalars(select(Style).where(Style.code.in_(style_codes))).all()
+    } if style_codes else {}
     return {
         "items": [
             {
@@ -2465,6 +3004,7 @@ def admin_analytics_events(
                 "userId": item.user_id,
                 "deviceId": item.device_id,
                 "styleId": item.style_id,
+                "styleName": styles_by_code[item.style_id].name if item.style_id in styles_by_code else None,
                 "storeId": item.store_id,
                 "sourcePage": item.source_page,
                 "sourceChannel": item.source_channel,
@@ -2483,6 +3023,69 @@ def admin_style_analytics(style_id: str, _: User = Depends(require_platform_admi
     if not style:
         raise HTTPException(status_code=404, detail="style not found")
     return {"style": style_to_dict_with_db(db, style), "analytics": build_style_trend_summary(db, style_id)}
+
+
+@app.get("/admin/tryon/quality")
+def admin_tryon_quality(_: User = Depends(require_platform_admin), db: Session = Depends(get_db), limit: int = 20) -> dict[str, Any]:
+    safe_limit = max(1, min(limit, 100))
+    records = db.scalars(select(TryOnRecord).order_by(TryOnRecord.created_at.desc()).limit(safe_limit)).all()
+    return {
+        "model": settings.tryon_quality_eval_model,
+        "items": [tryon_quality_record_to_admin_dict(db, record) for record in records],
+    }
+
+
+@app.post("/admin/tryon/quality/{record_id}/model-evaluate")
+def admin_tryon_quality_model_evaluate(record_id: int, user: User = Depends(require_platform_admin), db: Session = Depends(get_db)) -> dict[str, Any]:
+    record = db.get(TryOnRecord, record_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="try-on record not found")
+    asset = db.get(NailStyleAsset, record.nail_style_asset_id)
+    record_payload = tryon_quality_record_to_admin_dict(db, record)
+    payload = evaluate_tryon_quality_with_model(record, record_payload)
+    log_event(
+        db,
+        "tryon_quality_eval",
+        user_id=user.id,
+        style_id=asset.style_code if asset else None,
+        source_page="admin_quality_model",
+        payload=payload,
+    )
+    db.commit()
+    return {"evaluation": payload, "record": tryon_quality_record_to_admin_dict(db, record)}
+
+
+@app.post("/admin/tryon/quality/{record_id}/manual-review")
+def admin_tryon_quality_manual_review(
+    record_id: int,
+    payload: TryOnQualityReviewRequest,
+    user: User = Depends(require_platform_admin),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    record = db.get(TryOnRecord, record_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="try-on record not found")
+    asset = db.get(NailStyleAsset, record.nail_style_asset_id)
+    event_payload = {
+        "tryOnRecordId": record.id,
+        "evaluator": "manual",
+        "model": settings.tryon_quality_eval_model,
+        "styleFidelity": payload.styleFidelity,
+        "manualConsistency": payload.manualConsistency,
+        "reviewNote": payload.reviewNote,
+        "reviewedBy": user.email,
+        "evaluatedAt": utcnow().isoformat(),
+    }
+    log_event(
+        db,
+        "tryon_quality_eval",
+        user_id=user.id,
+        style_id=asset.style_code if asset else None,
+        source_page="admin_quality_manual",
+        payload=event_payload,
+    )
+    db.commit()
+    return {"evaluation": event_payload, "record": tryon_quality_record_to_admin_dict(db, record)}
 
 
 @app.get("/admin/trends/recommendations")
@@ -2982,21 +3585,23 @@ def worker_complete(job_code: str, payload: WorkerCompleteRequest, _: None = Dep
     job.updated_at = utcnow()
     db.add(job)
     asset = get_style_asset_by_code(db, job.style_id)
+    record: TryOnRecord | None = None
     if asset:
-        db.add(
-            TryOnRecord(
-                user_id=job.user_id,
-                hand_image_id=None,
-                nail_style_asset_id=asset.id,
-                result_url=tryon_result_url(payload.resultImageKey),
-                source="async-job",
-                duration_ms=0,
-                selected_length=job.selected_length,
-                selected_shape=job.selected_shape,
-            )
+        record = TryOnRecord(
+            user_id=job.user_id,
+            hand_image_id=None,
+            nail_style_asset_id=asset.id,
+            result_url=tryon_result_url(payload.resultImageKey),
+            source="bailian-live",
+            duration_ms=0,
+            selected_length=job.selected_length,
+            selected_shape=job.selected_shape,
         )
+        db.add(record)
     log_event(db, "tryon_complete", user_id=job.user_id, style_id=job.style_id, source_page="tryon_worker")
     db.commit()
+    if record:
+        auto_evaluate_tryon_quality(record.id)
     log_event_json(app_logger, "tryon_async_completed", jobId=job.job_code, userId=job.user_id, styleId=job.style_id, resultImageKey=job.result_image_key)
     return {"status": "ok"}
 

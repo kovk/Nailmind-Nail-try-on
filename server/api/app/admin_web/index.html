@@ -47,8 +47,13 @@
     <section id="workspace" class="workspace hidden">
       <aside class="rail">
         <div class="rail-top">
-          <p class="eyebrow">Nail Mind</p>
-          <h2 id="workspace-title">运营工作台</h2>
+          <div class="brand-lockup">
+            <div class="brand-mark">NM</div>
+            <div>
+              <p class="eyebrow">Nail Mind</p>
+              <h2 id="workspace-title">运营工作台</h2>
+            </div>
+          </div>
           <p id="workspace-subtitle" class="muted">基于真实业务数据运行</p>
         </div>
         <div class="surface user-card">
@@ -56,19 +61,34 @@
           <p id="user-meta" class="muted">-</p>
           <span id="role-chip" class="role-chip">未登录</span>
         </div>
+        <nav id="sidebar-nav" class="sidebar-nav"></nav>
         <div class="surface rail-note">
           <strong>当前原则</strong>
           <p id="role-note" class="muted">登录后根据账号角色切换到对应工作台。</p>
         </div>
-        <button id="logout" type="button" class="ghost-button rail-logout">退出登录</button>
+        <div class="rail-footer">
+          <button id="logout" type="button" class="ghost-button rail-logout">退出登录</button>
+        </div>
       </aside>
 
       <main class="workspace-main">
         <header class="topbar">
-          <div>
+          <div class="topbar-copy">
             <p id="page-kicker" class="eyebrow">Workspace</p>
             <h1 id="page-title">工作台</h1>
             <p id="page-description" class="lead compact">请先登录。</p>
+          </div>
+          <div class="topbar-actions">
+            <div id="topbar-range" class="topbar-chip">最近 7 天</div>
+            <button id="refresh-view" type="button" class="secondary-button topbar-button">刷新</button>
+            <button id="topbar-detail" type="button" class="ghost-button topbar-button hidden">查看明细</button>
+            <div class="topbar-user">
+              <div class="topbar-user-bell" aria-hidden="true"></div>
+              <div class="topbar-user-meta">
+                <strong id="topbar-user-name">-</strong>
+                <span id="topbar-user-role">-</span>
+              </div>
+            </div>
           </div>
         </header>
 

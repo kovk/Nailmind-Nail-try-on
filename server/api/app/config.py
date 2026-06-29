@@ -16,10 +16,15 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 10080
     worker_token: str = "replace-with-a-long-random-worker-token"
+    tryon_optimize_max_side: int = 1024
     dashscope_api_key: str = ""
     openclaw_api_key: str = ""
     openclaw_base_url: str = ""
     openclaw_model: str = "mimo-v2.5-pro"
+    tryon_quality_eval_model: str = "qwen3.7-plus"
+    tryon_quality_eval_api_url: str = "https://llm-94vhtqpe44xwnidh.cn-beijing.maas.aliyuncs.com/compatible-mode/v1/chat/completions"
+    tryon_quality_eval_native_api_url: str = "https://llm-94vhtqpe44xwnidh.cn-beijing.maas.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation"
+    tryon_quality_eval_timeout_seconds: int = 90
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", case_sensitive=False)
 
