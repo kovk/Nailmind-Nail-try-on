@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="500" viewBox="0 0 1280 500">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#475569"/>
+    </marker>
+    <style>
+      .title { font: 18px Arial, sans-serif; font-weight: bold; fill: #0f172a; }
+      .actor { font: 14px Arial, sans-serif; fill: #0f172a; text-anchor: middle; }
+      .box { fill: #f8fafc; stroke: #1f2937; stroke-width: 1.4; rx: 10; ry: 10; }
+      .lifeline { stroke: #94a3b8; stroke-dasharray: 6 4; stroke-width: 1.5; }
+      .msg { stroke: #475569; stroke-width: 2; fill: none; marker-end: url(#arrow); }
+      .label { font: 13px Arial, sans-serif; fill: #334155; }
+    </style>
+  </defs>
+  <text x="40" y="36" class="title">运营侧趋势处理流程</text>
+
+  <rect x="40" y="60" width="150" height="42" class="box" fill="#dbeafe"/>
+  <text x="115" y="86" class="actor">运营人员</text>
+  <rect x="260" y="60" width="160" height="42" class="box" fill="#e0f2fe"/>
+  <text x="340" y="86" class="actor">web-admin</text>
+  <rect x="500" y="60" width="170" height="42" class="box" fill="#dcfce7"/>
+  <text x="585" y="86" class="actor">backend/api</text>
+  <rect x="760" y="60" width="170" height="42" class="box" fill="#dcfce7"/>
+  <text x="845" y="86" class="actor">NailClaw</text>
+  <rect x="1010" y="60" width="180" height="42" class="box" fill="#fef3c7"/>
+  <text x="1100" y="86" class="actor">redbook / XhsSkills</text>
+
+  <line x1="115" y1="102" x2="115" y2="450" class="lifeline"/>
+  <line x1="340" y1="102" x2="340" y2="450" class="lifeline"/>
+  <line x1="585" y1="102" x2="585" y2="450" class="lifeline"/>
+  <line x1="845" y1="102" x2="845" y2="450" class="lifeline"/>
+  <line x1="1100" y1="102" x2="1100" y2="450" class="lifeline"/>
+
+  <path d="M115 150 L340 150" class="msg"/>
+  <text x="175" y="142" class="label">进入运营后台</text>
+  <path d="M340 200 L585 200" class="msg"/>
+  <text x="400" y="192" class="label">请求趋势数据</text>
+  <path d="M340 250 L585 250" class="msg"/>
+  <text x="395" y="242" class="label">发起趋势刷新</text>
+  <path d="M585 300 L845 300" class="msg"/>
+  <text x="660" y="292" class="label">collect_nailclaw_trends</text>
+  <path d="M845 350 L1100 350" class="msg"/>
+  <text x="915" y="342" class="label">抓取社区帖子</text>
+  <path d="M1100 390 L845 390" class="msg"/>
+  <text x="950" y="382" class="label">返回帖子数据</text>
+  <path d="M845 430 L585 430" class="msg"/>
+  <text x="690" y="422" class="label">返回候选建议</text>
+</svg>

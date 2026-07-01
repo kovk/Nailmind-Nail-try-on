@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="700" viewBox="0 0 1280 700">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#475569"/>
+    </marker>
+    <style>
+      .node { fill: none; stroke: #64748b; stroke-width: 2; rx: 16; ry: 16; }
+      .inst { fill: #f8fafc; stroke: #1f2937; stroke-width: 1.5; rx: 12; ry: 12; }
+      .head { font: 16px Arial, sans-serif; font-weight: bold; fill: #0f172a; }
+      .small { font: 12px Arial, sans-serif; fill: #475569; }
+      .text { font: 14px Arial, sans-serif; fill: #0f172a; text-anchor: middle; dominant-baseline: middle; }
+      .line { stroke: #475569; stroke-width: 2; fill: none; marker-end: url(#arrow); }
+    </style>
+  </defs>
+
+  <rect x="40" y="60" width="250" height="260" class="node"/>
+  <text x="60" y="88" class="head">«device» 用户设备</text>
+  <rect x="75" y="125" width="180" height="72" class="inst" fill="#e0f2fe"/>
+  <text x="165" y="150" class="small">«executionEnvironment»</text>
+  <text x="165" y="173" class="text">Android App</text>
+  <rect x="75" y="225" width="180" height="72" class="inst" fill="#e0f2fe"/>
+  <text x="165" y="250" class="small">«executionEnvironment»</text>
+  <text x="165" y="273" class="text">Web Browser</text>
+
+  <rect x="340" y="40" width="520" height="520" class="node"/>
+  <text x="360" y="68" class="head">«node» 应用服务器</text>
+  <rect x="390" y="105" width="180" height="74" class="inst" fill="#dcfce7"/>
+  <text x="480" y="129" class="small">«artifact»</text>
+  <text x="480" y="154" class="text">web-admin 静态资源</text>
+
+  <rect x="620" y="105" width="180" height="74" class="inst" fill="#dcfce7"/>
+  <text x="710" y="129" class="small">«executionEnvironment»</text>
+  <text x="710" y="154" class="text">FastAPI API</text>
+
+  <rect x="390" y="250" width="180" height="74" class="inst" fill="#fee2e2"/>
+  <text x="480" y="274" class="small">«database»</text>
+  <text x="480" y="299" class="text">SQLite</text>
+
+  <rect x="620" y="250" width="180" height="74" class="inst" fill="#fee2e2"/>
+  <text x="710" y="274" class="small">«artifact»</text>
+  <text x="710" y="299" class="text">DATA_DIR</text>
+
+  <rect x="500" y="395" width="190" height="82" class="inst" fill="#dcfce7"/>
+  <text x="595" y="420" class="small">«component»</text>
+  <text x="595" y="445" class="text">NailClaw / Trend Logic</text>
+
+  <rect x="920" y="60" width="290" height="400" class="node"/>
+  <text x="940" y="88" class="head">«external node» 第三方服务</text>
+  <rect x="965" y="135" width="200" height="72" class="inst" fill="#fef3c7"/>
+  <text x="1065" y="160" class="small">«service»</text>
+  <text x="1065" y="183" class="text">DashScope 百炼</text>
+  <rect x="965" y="250" width="200" height="72" class="inst" fill="#fef3c7"/>
+  <text x="1065" y="275" class="small">«service»</text>
+  <text x="1065" y="298" class="text">redbook / XhsSkills</text>
+
+  <path d="M255 161 L620 142" class="line"/>
+  <path d="M255 261 L390 142" class="line"/>
+  <path d="M570 142 L620 142" class="line"/>
+  <path d="M710 179 L480 250" class="line"/>
+  <path d="M710 179 L710 250" class="line"/>
+  <path d="M710 179 L595 395" class="line"/>
+  <path d="M800 142 L965 171" class="line"/>
+  <path d="M690 436 L965 286" class="line"/>
+</svg>

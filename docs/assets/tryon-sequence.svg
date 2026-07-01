@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="520" viewBox="0 0 1280 520">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#475569"/>
+    </marker>
+    <style>
+      .title { font: 18px Arial, sans-serif; font-weight: bold; fill: #0f172a; }
+      .actor { font: 14px Arial, sans-serif; fill: #0f172a; text-anchor: middle; }
+      .box { fill: #f8fafc; stroke: #1f2937; stroke-width: 1.4; rx: 10; ry: 10; }
+      .lifeline { stroke: #94a3b8; stroke-dasharray: 6 4; stroke-width: 1.5; }
+      .msg { stroke: #475569; stroke-width: 2; fill: none; marker-end: url(#arrow); }
+      .label { font: 13px Arial, sans-serif; fill: #334155; }
+    </style>
+  </defs>
+  <text x="40" y="36" class="title">AI 试戴流程</text>
+
+  <rect x="40" y="60" width="120" height="42" class="box" fill="#dbeafe"/>
+  <text x="100" y="86" class="actor">用户</text>
+  <rect x="250" y="60" width="150" height="42" class="box" fill="#e0f2fe"/>
+  <text x="325" y="86" class="actor">app/android</text>
+  <rect x="500" y="60" width="170" height="42" class="box" fill="#dcfce7"/>
+  <text x="585" y="86" class="actor">backend/api</text>
+  <rect x="770" y="60" width="140" height="42" class="box" fill="#fee2e2"/>
+  <text x="840" y="86" class="actor">DATA_DIR</text>
+  <rect x="1010" y="60" width="160" height="42" class="box" fill="#fef3c7"/>
+  <text x="1090" y="86" class="actor">DashScope 百炼</text>
+
+  <line x1="100" y1="102" x2="100" y2="470" class="lifeline"/>
+  <line x1="325" y1="102" x2="325" y2="470" class="lifeline"/>
+  <line x1="585" y1="102" x2="585" y2="470" class="lifeline"/>
+  <line x1="840" y1="102" x2="840" y2="470" class="lifeline"/>
+  <line x1="1090" y1="102" x2="1090" y2="470" class="lifeline"/>
+
+  <path d="M100 140 L325 140" class="msg"/>
+  <text x="165" y="132" class="label">选择款式、上传手图</text>
+  <path d="M325 180 L585 180" class="msg"/>
+  <text x="385" y="172" class="label">POST /api/tryon/upload-hand</text>
+  <path d="M585 220 L840 220" class="msg"/>
+  <text x="670" y="212" class="label">保存手图</text>
+  <path d="M585 260 L325 260" class="msg"/>
+  <text x="405" y="252" class="label">返回 handId</text>
+  <path d="M325 300 L585 300" class="msg"/>
+  <text x="390" y="292" class="label">POST /api/tryon/try-on</text>
+  <path d="M585 340 L840 340" class="msg"/>
+  <text x="670" y="332" class="label">查询缓存结果</text>
+  <path d="M585 380 L1090 380" class="msg"/>
+  <text x="730" y="372" class="label">未命中时调用试戴生成</text>
+  <path d="M1090 420 L585 420" class="msg"/>
+  <text x="780" y="412" class="label">返回结果图</text>
+  <path d="M585 450 L325 450" class="msg"/>
+  <text x="430" y="442" class="label">返回 result_url</text>
+</svg>

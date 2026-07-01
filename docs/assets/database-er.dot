@@ -1,0 +1,33 @@
+digraph DatabaseER {
+  graph [rankdir=LR, bgcolor="white", pad="0.2", nodesep="0.45", ranksep="0.8"];
+  node [shape=record, fontname="Arial", fontsize=10, color="#334155", fillcolor="#f8fafc", style="filled"];
+  edge [color="#64748b", arrowsize=0.7, penwidth=1.0];
+
+  merchants [label="{merchants|id PK\lcode UK\lname\l}"];
+  users [label="{users|id PK\lemail UK\lrole\lmerchant_id FK\lmanaged_store_code\l}"];
+  stores [label="{stores|id PK\lcode UK\lmerchant_id FK\lname\l}"];
+  styles [label="{styles|id PK\lcode UK\lname\lstatus\l}"];
+  assets [label="{nail_style_assets|id PK\lstyle_code UK\llocal_image_path\l}"];
+  favorites [label="{favorites|id PK\luser_id FK\lstyle_id\l}"];
+  bookings [label="{bookings|id PK\luser_id FK\lstore_id\lstyle_id\lstatus\l}"];
+  hands [label="{hand_images|id PK\lhand_code UK\lsource_type\l}"];
+  tryon_records [label="{try_on_records|id PK\luser_id\lhand_image_id FK\lnail_style_asset_id FK\lduration_ms\l}"];
+  events [label="{event_logs|id PK\levent_id UK\levent_name\luser_id\lstyle_id\lstore_id\l}"];
+  topics [label="{trend_topics|id PK\ltopic_key UK\ltitle\lcommunity_heat_score\l}"];
+  posts [label="{trend_posts|id PK\ltopic_id FK\lpost_id\lauthor\lurl\l}"];
+  recs [label="{trend_recommendations|id PK\lrecommendation_code UK\lrecommendation_type\lcandidate_name\lstatus\l}"];
+
+  merchants -> users [label="1:n"];
+  merchants -> stores [label="1:n"];
+  stores -> bookings [label="1:n"];
+  users -> favorites [label="1:n"];
+  users -> bookings [label="1:n"];
+  styles -> favorites [label="1:n"];
+  styles -> bookings [label="1:n"];
+  styles -> events [label="1:n"];
+  styles -> assets [label="1:1"];
+  hands -> tryon_records [label="1:n"];
+  assets -> tryon_records [label="1:n"];
+  topics -> posts [label="1:n"];
+  topics -> recs [label="1:n"];
+}

@@ -1,0 +1,159 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="860" viewBox="0 0 1400 860">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#64748b"/>
+    </marker>
+    <style>
+      .table { fill: #f8fafc; stroke: #334155; stroke-width: 1.4; rx: 10; ry: 10; }
+      .head { fill: #dbeafe; }
+      .name { font: 13px Arial, sans-serif; font-weight: bold; fill: #0f172a; }
+      .field { font: 12px Arial, sans-serif; fill: #334155; }
+      .line { stroke: #64748b; stroke-width: 1.4; fill: none; marker-end: url(#arrow); }
+    </style>
+  </defs>
+
+  <g transform="translate(40,40)">
+    <rect width="170" height="90" class="table"/>
+    <rect width="170" height="24" class="table head"/>
+    <text x="10" y="17" class="name">merchants</text>
+    <text x="10" y="42" class="field">id PK</text>
+    <text x="10" y="60" class="field">code UK</text>
+    <text x="10" y="78" class="field">name</text>
+  </g>
+
+  <g transform="translate(260,40)">
+    <rect width="190" height="110" class="table"/>
+    <rect width="190" height="24" class="table head"/>
+    <text x="10" y="17" class="name">users</text>
+    <text x="10" y="42" class="field">id PK</text>
+    <text x="10" y="60" class="field">email UK</text>
+    <text x="10" y="78" class="field">role</text>
+    <text x="10" y="96" class="field">merchant_id FK</text>
+  </g>
+
+  <g transform="translate(500,40)">
+    <rect width="180" height="90" class="table"/>
+    <rect width="180" height="24" class="table head"/>
+    <text x="10" y="17" class="name">stores</text>
+    <text x="10" y="42" class="field">id PK</text>
+    <text x="10" y="60" class="field">code UK</text>
+    <text x="10" y="78" class="field">merchant_id FK</text>
+  </g>
+
+  <g transform="translate(40,210)">
+    <rect width="180" height="90" class="table"/>
+    <rect width="180" height="24" class="table head"/>
+    <text x="10" y="17" class="name">styles</text>
+    <text x="10" y="42" class="field">id PK</text>
+    <text x="10" y="60" class="field">code UK</text>
+    <text x="10" y="78" class="field">status</text>
+  </g>
+
+  <g transform="translate(280,210)">
+    <rect width="210" height="90" class="table"/>
+    <rect width="210" height="24" class="table head"/>
+    <text x="10" y="17" class="name">nail_style_assets</text>
+    <text x="10" y="42" class="field">id PK</text>
+    <text x="10" y="60" class="field">style_code UK</text>
+    <text x="10" y="78" class="field">local_image_path</text>
+  </g>
+
+  <g transform="translate(540,210)">
+    <rect width="180" height="90" class="table"/>
+    <rect width="180" height="24" class="table head"/>
+    <text x="10" y="17" class="name">favorites</text>
+    <text x="10" y="42" class="field">id PK</text>
+    <text x="10" y="60" class="field">user_id FK</text>
+    <text x="10" y="78" class="field">style_id</text>
+  </g>
+
+  <g transform="translate(770,210)">
+    <rect width="190" height="108" class="table"/>
+    <rect width="190" height="24" class="table head"/>
+    <text x="10" y="17" class="name">bookings</text>
+    <text x="10" y="42" class="field">id PK</text>
+    <text x="10" y="60" class="field">user_id FK</text>
+    <text x="10" y="78" class="field">store_id</text>
+    <text x="10" y="96" class="field">style_id</text>
+  </g>
+
+  <g transform="translate(40,390)">
+    <rect width="180" height="90" class="table"/>
+    <rect width="180" height="24" class="table head"/>
+    <text x="10" y="17" class="name">hand_images</text>
+    <text x="10" y="42" class="field">id PK</text>
+    <text x="10" y="60" class="field">hand_code UK</text>
+    <text x="10" y="78" class="field">source_type</text>
+  </g>
+
+  <g transform="translate(280,390)">
+    <rect width="220" height="108" class="table"/>
+    <rect width="220" height="24" class="table head"/>
+    <text x="10" y="17" class="name">try_on_records</text>
+    <text x="10" y="42" class="field">id PK</text>
+    <text x="10" y="60" class="field">hand_image_id FK</text>
+    <text x="10" y="78" class="field">nail_style_asset_id FK</text>
+    <text x="10" y="96" class="field">duration_ms</text>
+  </g>
+
+  <g transform="translate(560,390)">
+    <rect width="210" height="108" class="table"/>
+    <rect width="210" height="24" class="table head"/>
+    <text x="10" y="17" class="name">event_logs</text>
+    <text x="10" y="42" class="field">id PK</text>
+    <text x="10" y="60" class="field">event_id UK</text>
+    <text x="10" y="78" class="field">event_name</text>
+    <text x="10" y="96" class="field">style_id / store_id</text>
+  </g>
+
+  <g transform="translate(850,390)">
+    <rect width="220" height="90" class="table"/>
+    <rect width="220" height="24" class="table head"/>
+    <text x="10" y="17" class="name">style_metrics_daily</text>
+    <text x="10" y="42" class="field">style_id</text>
+    <text x="10" y="60" class="field">metric_date</text>
+    <text x="10" y="78" class="field">impressions / clicks</text>
+  </g>
+
+  <g transform="translate(40,580)">
+    <rect width="200" height="90" class="table"/>
+    <rect width="200" height="24" class="table head"/>
+    <text x="10" y="17" class="name">trend_topics</text>
+    <text x="10" y="42" class="field">id PK</text>
+    <text x="10" y="60" class="field">topic_key UK</text>
+    <text x="10" y="78" class="field">community_heat_score</text>
+  </g>
+
+  <g transform="translate(310,580)">
+    <rect width="200" height="90" class="table"/>
+    <rect width="200" height="24" class="table head"/>
+    <text x="10" y="17" class="name">trend_posts</text>
+    <text x="10" y="42" class="field">id PK</text>
+    <text x="10" y="60" class="field">topic_id FK</text>
+    <text x="10" y="78" class="field">post_id / url</text>
+  </g>
+
+  <g transform="translate(580,580)">
+    <rect width="240" height="108" class="table"/>
+    <rect width="240" height="24" class="table head"/>
+    <text x="10" y="17" class="name">trend_recommendations</text>
+    <text x="10" y="42" class="field">id PK</text>
+    <text x="10" y="60" class="field">recommendation_code UK</text>
+    <text x="10" y="78" class="field">recommendation_type</text>
+    <text x="10" y="96" class="field">status</text>
+  </g>
+
+  <path d="M210 85 L260 95" class="line"/>
+  <path d="M450 95 L500 85" class="line"/>
+  <path d="M130 130 L130 210" class="line"/>
+  <path d="M450 95 L610 210" class="line"/>
+  <path d="M220 255 L280 255" class="line"/>
+  <path d="M220 255 L540 255" class="line"/>
+  <path d="M220 255 L770 255" class="line"/>
+  <path d="M130 480 L280 444" class="line"/>
+  <path d="M490 255 L390 390" class="line"/>
+  <path d="M220 255 L560 444" class="line"/>
+  <path d="M220 255 L850 435" class="line"/>
+  <path d="M240 625 L310 625" class="line"/>
+  <path d="M240 625 L580 625" class="line"/>
+</svg>

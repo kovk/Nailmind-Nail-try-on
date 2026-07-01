@@ -1,599 +1,83 @@
-# NailMind 项目方案设计文档
+# NailMind 方案设计文档
 
 ## 1. 需求背景
 
-NailMind 是一个面向美甲消费与门店运营的 AI 项目，目标不是只做单点试戴，而是打通“用户决策 - 门店转化 - 运营选款”三条链路：
+NailMind 面向两个场景：用户选款和平台运营。对用户来说，最难的是下单前没有直观的上手效果，看到款式图以后，还是很难判断是否适合自己。对商家和运营来说，问题又不一样。商家关心门店款式、预约和库存，运营关心哪些款式值得推，哪些款式该下架，后台还要能看清试戴和预约转化。
 
-- 用户侧：用户在下单前希望直观看到某个款式上手后的效果，并快速完成收藏、预约和复访。
-- 商家侧：门店需要管理在售款式、库存、营业时段和预约情况。
-- 运营侧：平台需要基于站内转化与站外社区内容判断什么款式值得上新、加推或下架。
-
-因此，项目必须同时提供：
-
-- 一个能承接真实业务流程的移动端应用
-- 一套统一的后端服务与数据模型
-- 一个覆盖运营和商家角色的管理端
-- 一条连接小红书趋势采集、模型分析与运营决策的趋势链路
+项目按三个目录拆开以后，结构已经比较明确：`app/` 负责用户侧移动端，`backend/` 负责业务和数据，`web-admin/` 负责商家与运营后台。这份文档就按这三部分来展开，把整体结构、核心流程、数据表关系和评测结果梳理清楚。
 
 ## 2. 需求分析
 
-### 2.1 核心业务需求
+从业务上看，这个系统至少要同时满足三类需求。
 
-| 角色 | 需求 | 系统响应 |
-| --- | --- | --- |
-| 普通用户 | 浏览真实款式、上传手图、生成试戴图、收藏、预约 | Android App + FastAPI + AI 试戴链路 |
-| 商家管理员 | 查看所属门店商品、库存、预约、营业时间 | Web Admin + 门店隔离权限 |
-| 平台运营管理员 | 查看埋点漏斗、试戴评测、社区趋势、审核推荐 | Web Admin + 趋势分析链路 |
+- 用户侧需要完成浏览、试戴、收藏和预约，流程要顺，返回结果要快。
+- 商家侧需要管理门店款式和预约，但权限要收住，只能看到自己的门店数据。
+- 运营侧需要看到真实的埋点、试戴质量和趋势建议，方便做上新、加推和下架决策。
 
-### 2.2 非功能需求
+落到系统设计上，三个目录的分工也就清楚了。`app/` 主要处理用户交互和 API 调用，`backend/` 负责业务规则、数据库和 AI 试戴，`web-admin/` 提供后台操作入口。第三方能力，比如百炼和社区内容抓取，也都通过 `backend/` 接进来。
 
-| 维度 | 要求 |
-| --- | --- |
-| 一致性 | App、Web Admin 与后端共用同一套业务数据 |
-| 时延 | 用户主流程优先提供同步体验，能命中缓存时不重复生成 |
-| 可维护性 | 客户端、后端、管理端、趋势代理拆分清晰，可独立建仓 |
-| 可评测性 | 时延、还原度、一致性、热度和转化都能从真实记录回溯 |
-| 可扩展性 | 趋势分析与主 API 解耦，避免高时延任务拖慢用户请求 |
+## 3. 架构设计
 
-### 2.3 关键问题拆解
+### 3.1 组件关系
 
-1. 如何让用户在移动端获得稳定、可复用的 AI 试戴体验。
-2. 如何用统一后端同时服务用户端、商家端和运营端。
-3. 如何把小红书趋势、站内埋点和模型建议串成闭环，而不是孤立展示。
-4. 如何在演示和比赛环境下，用真实数据而不是硬编码假指标支撑评测结果。
+![组件关系图](./assets/uml-component.svg)
 
-## 3. 项目架构设计
+这张图对应的是三仓之间的静态关系。`app/` 和 `web-admin/` 都围绕 `backend/` 工作。用户侧和后台侧没有直接共享状态，所有业务数据都经过后端统一处理。这样做的好处很直接：接口边界稳定，权限控制集中，后面做测试和部署也更省事。
 
-当前系统不应只用一张“谁连谁”的示意图来描述。为了避免把业务流程误写成架构，这里将架构拆成三个视角：系统上下文、逻辑架构、部署与运行架构。
+### 3.2 运行结构
 
-### 3.1 系统上下文图
+![运行结构图](./assets/uml-deployment.svg)
 
-这张图回答“系统外部有哪些参与者，分别通过什么边界与系统交互”。
+从运行方式看，`backend/api` 是主服务，承担 API 路由、业务编排和数据读写；`web-admin/` 提供静态页面资源；`app/` 和后台浏览器都通过接口访问后端。当前数据平面还是单机式的 `SQLite + DATA_DIR`，更适合演示和比赛环境，结构简单，调试方便。
 
-```mermaid
-flowchart LR
-    U["普通用户"] --> APP["Android App"]
-    M["商家管理员"] --> WEB["Web Admin"]
-    O["平台运营管理员"] --> WEB
+## 4. 核心流程
 
-    APP --> SYS["NailMind 平台系统"]
-    WEB --> SYS
+### 4.1 AI 试戴流程
 
-    SYS --> DS["DashScope 百炼"]
-    SYS --> XHS["小红书账号矩阵 / XhsSkills"]
-    SYS --> OC["OpenClaw + MiMo v2.5 Pro"]
-    SYS --> DATA["本地数据库与文件资源"]
-```
+![AI 试戴流程](./assets/tryon-sequence.svg)
 
-这个视角只强调系统边界：
+这条链路从用户选款开始，先上传手图，再进入试戴接口。后端会先查缓存，命中时直接返回结果，没命中再调用百炼生成结果图。生成后的图片会落到本地目录，同时写入试戴记录，供历史查看和后续评测使用。
 
-- 用户只通过 Android App 访问 C 端能力。
-- 商家与运营通过同一个 Web Admin 入口访问不同权限能力。
-- 百炼、小红书采集能力、OpenClaw 都是系统外部依赖，不属于平台内部业务模块。
+### 4.2 运营侧趋势处理流程
 
-### 3.2 逻辑架构图
+![运营侧趋势处理流程](./assets/admin-sequence.svg)
 
-这张图回答“系统内部有哪些核心子系统，各自负责什么能力，以及它们如何协作”。
+后台这条链路由 `web-admin/` 发起，核心逻辑在 `backend/`。运营先查看已有趋势数据，需要刷新时再触发 NailClaw 去抓取社区帖子，整理出候选建议，然后回写到后端。这样商家端和运营端都只面对业务结果，不需要直接碰采集细节。
 
-```mermaid
-flowchart TB
-    subgraph Client["接入层"]
-        APP["Android App"]
-        WEB["Web Admin"]
-    end
+### 4.3 预约转化流程
 
-    subgraph API["应用服务层 / FastAPI"]
-        AUTH["认证与权限模块"]
-        CATALOG["款式 / 收藏 / 门店 / 预约模块"]
-        TRYON["AI 试戴编排模块"]
-        ANALYTICS["埋点与运营分析模块"]
-        TRENDCTRL["趋势采集与推荐控制模块"]
-    end
+![预约转化流程](./assets/booking-flow.svg)
 
-    subgraph Data["数据与资源层"]
-        DB["SQLite / SQLAlchemy"]
-        FS["DATA_DIR 文件存储"]
-    end
+这条流程把用户浏览、试戴和门店预约接在一起。用户在 `app/` 里完成选款和试戴后，能顺着同一条路径继续看门店、选时段、提交预约，最后由商家在 `web-admin/` 里确认。这也是整个项目里最关键的一条业务闭环。
 
-    subgraph AI["外部 AI 与内容分析能力"]
-        BAILIAN["DashScope 百炼试戴生成"]
-        XHSCOL["XhsSkills / 账号矩阵采集"]
-        TRENDAGENT["trend_agent 离线推荐生成器"]
-        OPENCLAW["OpenClaw + MiMo v2.5 Pro"]
-    end
+## 5. 数据表设计
 
-    APP --> AUTH
-    APP --> CATALOG
-    APP --> TRYON
-    APP --> ANALYTICS
+数据库模型定义在 `backend/api/app/models.py`，主要关系如下图所示。
 
-    WEB --> AUTH
-    WEB --> CATALOG
-    WEB --> ANALYTICS
-    WEB --> TRENDCTRL
+![数据库 ER 图](./assets/database-er.svg)
 
-    AUTH --> DB
-    CATALOG --> DB
-    TRYON --> DB
-    TRYON --> FS
-    ANALYTICS --> DB
-    TRENDCTRL --> DB
+表结构大致可以分成四组：
 
-    TRYON --> BAILIAN
-    TRENDCTRL --> XHSCOL
-    TRENDCTRL --> TRENDAGENT
-    TRENDAGENT --> OPENCLAW
-    TRENDAGENT --> DB
-```
-
-逻辑上可以分成四层：
-
-- 接入层：Android App 与 Web Admin，分别面向消费者和后台角色。
-- 应用服务层：FastAPI 内部按职责分为认证、交易、试戴、分析和趋势控制模块。
-- 数据与资源层：数据库负责结构化业务数据，文件存储负责款式图、手图和试戴结果图。
-- 外部能力层：百炼负责试戴生成，小红书采集负责内容抓取，OpenClaw 负责趋势总结。
-
-### 3.3 运行与部署架构图
-
-这张图回答“实际运行时哪些组件在同一进程/仓库里，哪些是外部服务，哪些是离线任务”。
-
-```mermaid
-flowchart LR
-    subgraph Device["用户设备"]
-        APP["Android App"]
-        BROWSER["运营 / 商家浏览器"]
-    end
-
-    subgraph Server["NailMind 服务节点"]
-        API["FastAPI 主服务"]
-        STATIC["Web Admin 静态资源"]
-        DB["SQLite 数据库"]
-        FILES["本地文件目录 DATA_DIR"]
-        AGENT["trend_agent 定时/离线任务"]
-    end
-
-    subgraph External["外部依赖"]
-        BAILIAN["DashScope 百炼"]
-        XHSCOL["XHS 账号矩阵 / XhsSkills"]
-        OPENCLAW["OpenClaw + MiMo"]
-    end
-
-    APP --> API
-    BROWSER --> STATIC
-    STATIC --> API
-
-    API --> DB
-    API --> FILES
-    API --> BAILIAN
-    API --> XHSCOL
-
-    AGENT --> DB
-    AGENT --> OPENCLAW
-```
-
-运行特征如下：
-
-- `FastAPI` 是主在线服务，承接 App 与管理端 API 请求。
-- `Web Admin` 目前是静态页面资源，本身不承担业务逻辑，核心逻辑仍在后端 API。
-- `trend_agent` 是离线任务组件，不在用户同步请求链路中。
-- `SQLite + DATA_DIR` 构成当前演示环境的数据平面，说明系统现在更偏单机部署。
-
-### 3.4 架构分层与职责
-
-| 架构层 | 核心组件 | 主要职责 |
-| --- | --- | --- |
-| 接入层 | Android App、Web Admin | 展示界面、发起请求、承载用户与后台交互 |
-| 业务编排层 | FastAPI 主服务 | 统一鉴权、路由编排、业务规则、结果聚合 |
-| 算法与分析层 | 百炼、trend_agent、OpenClaw、XhsSkills | 试戴生成、社区采集、趋势总结 |
-| 数据层 | SQLite、文件目录 | 业务表、埋点、趋势记录、图片资源 |
-
-### 3.5 模块划分
-
-| 模块 | 目录 | 职责 |
-| --- | --- | --- |
-| Android 客户端 | `app/android` 或 `client/android` | 用户浏览、试戴、收藏、预约、个人中心 |
-| 后端 API | `backend/api` 或 `server/api` | 用户/门店/运营接口、试戴编排、埋点聚合 |
-| 趋势代理 | `backend/trend_agent` 或 `server/trend_agent` | 离线生成趋势推荐 |
-| 管理端前端 | `web-admin` | 商家与运营管理页面 |
-| 项目文档与方案 | `docs` | 设计、方案、说明文档 |
-
-### 3.6 仓库拆分原则
-
-当前工作区同时保留原单仓库目录和拆分后目录：
-
-- `app/`：Android 客户端仓库
-- `backend/`：后端仓库
-- `web-admin/`：管理端仓库
-- `server/`、`client/`：原单仓库历史副本
-
-正式交付时建议以拆分后的三仓为主，原目录仅作为迁移过渡。
-
-## 4. 各子系统设计
-
-### 4.1 Android 客户端
-
-客户端基于 Jetpack Compose，当前已经覆盖五个一级入口：
-
-- 首页
-- 款式
-- AI 试戴
-- 预约
-- 我的
-
-客户端职责：
-
-- 调用认证、款式、收藏、门店、预约和试戴 API
-- 上传手图并展示试戴进度与结果
-- 承接收藏、预约和历史记录等后续动作
-- 上报曝光、点击、试戴、预约等埋点事件
-
-客户端不直接接触趋势采集和运营能力，只消费用户态业务接口。
-
-### 4.2 后端 API 与数据库
-
-FastAPI 主服务是整个项目的业务中台，负责三类接口：
-
-- 用户接口：认证、款式、收藏、预约、试戴、个人设置
-- 商家接口：门店商品、库存、预约处理、生命周期申请
-- 运营接口：埋点看板、试戴质量、趋势话题、推荐审核
-
-数据层使用 SQLAlchemy + SQLite，主要表包括：
-
-- 用户与权限：`users`、`session_tokens`、`merchants`
-- 内容与交易：`styles`、`nail_style_assets`、`stores`、`store_style_listings`、`favorites`、`bookings`
-- 试戴：`hand_images`、`try_on_jobs`、`try_on_records`
+- 用户与权限：`users`、`merchants`、`session_tokens`
+- 内容与交易：`styles`、`stores`、`favorites`、`bookings`
+- 试戴相关：`hand_images`、`nail_style_assets`、`try_on_jobs`、`try_on_records`
 - 运营分析：`event_logs`、`style_metrics_daily`、`trend_topics`、`trend_posts`、`trend_recommendations`
 
-### 4.3 Web Admin
+这一组模型基本覆盖了用户侧行为、门店经营数据和运营分析数据，也能支撑前面提到的三条核心流程。
 
-管理端目前是原生 HTML/CSS/JavaScript 静态前端，分为两类使用者：
+## 6. 评测结果
 
-- 商家角色：只看所属门店的商品与预约
-- 运营角色：可查看站内指标、趋势推荐和审核结果
+评测数据主要来自 `backend/命题三美甲评测数据（对外版）.xlsx` 和后端运行记录。Excel 数据集提供了手图、款式图和增强后款式图样本，导入后会进入后端素材库。真正的评测指标则来自后端落库的试戴记录和质量评测事件。
 
-设计重点不是前端框架本身，而是权限边界：
+当前重点看的指标有三类：
 
-- 商家不能读取全平台趋势和全局埋点
-- 运营可以审核趋势推荐、管理款式生命周期和查看聚合指标
+- 试戴平均时延
+- 款式还原度
+- 手工一致性
 
-### 4.4 趋势代理
+现有测试里已经覆盖了一组可复现样例：
 
-`trend_agent` 不直接对用户提供接口，而是作为离线分析组件：
-
-1. API 侧负责采集与过滤社区帖子
-2. `trend_agent` 读取 `TrendTopic`
-3. 通过 OpenClaw + MiMo v2.5 Pro 生成推荐摘要
-4. 写回 `TrendRecommendation`
-5. 由运营端审核后决定是否上新、加推或下架
-
-这种设计把“采集、分析、审核、执行”四个阶段分开，避免模型直接修改业务数据。
-
-## 5. 核心流程设计
-
-### 5.1 用户 AI 试戴流程
-
-```mermaid
-sequenceDiagram
-    participant User as 用户
-    participant App as Android App
-    participant API as FastAPI
-    participant FS as 文件存储
-    participant AI as 百炼模型
-    participant DB as 数据库
-
-    User->>App: 选择款式并上传手图
-    App->>API: POST /api/tryon/upload-hand
-    API->>FS: 保存手图
-    API->>DB: 写入 HandImage
-    API-->>App: 返回 handId
-
-    App->>API: POST /api/tryon/try-on
-    API->>FS: 检查缓存结果
-    alt 命中缓存
-        API->>DB: 写入 TryOnRecord(source=bailian-cached)
-        API-->>App: 返回 result_url
-    else 未命中缓存
-        API->>AI: 提交手图与款式图
-        AI-->>API: 返回结果图
-        API->>FS: 保存结果图
-        API->>DB: 写入 TryOnRecord(source=bailian-live)
-        API->>DB: 记录试戴完成与评测事件
-        API-->>App: 返回 result_url
-    end
-```
-
-### 5.2 预约转化流程
-
-```mermaid
-flowchart TD
-    A["浏览款式"] --> B["查看详情"]
-    B --> C["收藏"]
-    B --> D["AI 试戴"]
-    D --> E["查看门店"]
-    E --> F["选择时段"]
-    F --> G["创建预约"]
-    G --> H["商家确认"]
-```
-
-这个流程体现了项目不是孤立的“图片生成器”，而是把试戴与门店转化串起来。
-
-### 5.3 社区趋势到运营推荐流程
-
-```mermaid
-sequenceDiagram
-    participant Ops as 运营人员
-    participant Admin as Web Admin
-    participant API as FastAPI
-    participant Collector as XhsSkills / 账号矩阵
-    participant Agent as trend_agent
-    participant Model as OpenClaw + MiMo
-    participant DB as 数据库
-
-    Ops->>Admin: 发起趋势采集
-    Admin->>API: 提交关键词与采集条件
-    API->>Collector: 搜索并读取小红书帖子
-    Collector-->>API: 返回原始帖子
-    API->>API: 校验标题/作者/URL/图片
-    API->>DB: 写入 TrendTopic / TrendPost
-
-    Agent->>DB: 读取 TrendTopic
-    Agent->>Model: summarize(topic, posts)
-    Model-->>Agent: 输出推荐类型、候选款式、理由、置信度
-    Agent->>DB: 写入 TrendRecommendation
-
-    Ops->>Admin: 审核 recommendation
-    Admin->>API: approve / reject
-    API->>DB: 更新款式状态或新建候选款式
-```
-
-## 6. 数据库 ER 图
-
-下面的 ER 图描述了项目数据库中的核心实体、主键/外键关系和业务分层。
-
-```mermaid
-erDiagram
-    MERCHANTS {
-        int id PK
-        string code UK
-        string name
-        datetime created_at
-    }
-
-    USERS {
-        int id PK
-        string email UK
-        string role
-        int merchant_id FK
-        string managed_store_code
-        bool is_active
-        datetime created_at
-    }
-
-    SESSION_TOKENS {
-        int id PK
-        int user_id FK
-        string token UK
-        datetime created_at
-    }
-
-    STORES {
-        int id PK
-        string code UK
-        int merchant_id FK
-        string name
-        string open_hours
-        bool is_accepting_bookings
-        datetime updated_at
-    }
-
-    STYLES {
-        int id PK
-        string code UK
-        string name
-        string status
-        string vibe
-        string price
-        datetime updated_at
-    }
-
-    NAIL_STYLE_ASSETS {
-        int id PK
-        string style_code UK
-        int sequence_no UK
-        string local_image_path
-        string enhanced_url
-        datetime updated_at
-    }
-
-    STORE_STYLE_LISTINGS {
-        int id PK
-        string store_code
-        string style_code
-        int inventory_count
-        string status
-        datetime updated_at
-    }
-
-    FAVORITES {
-        int id PK
-        int user_id FK
-        string style_id
-        datetime created_at
-    }
-
-    BOOKINGS {
-        int id PK
-        int user_id FK
-        string store_id
-        string style_id
-        string status
-        datetime created_at
-        datetime confirmed_at
-    }
-
-    HAND_IMAGES {
-        int id PK
-        string hand_code UK
-        string source_type
-        string local_path
-        datetime created_at
-    }
-
-    TRY_ON_JOBS {
-        int id PK
-        string job_code UK
-        int user_id FK
-        string style_id
-        string status
-        string result_image_key
-        datetime completed_at
-    }
-
-    TRY_ON_RECORDS {
-        int id PK
-        int user_id
-        int hand_image_id FK
-        int nail_style_asset_id FK
-        string result_url
-        string source
-        int duration_ms
-        datetime created_at
-    }
-
-    EVENT_LOGS {
-        int id PK
-        string event_id UK
-        string event_name
-        int user_id
-        string style_id
-        string store_id
-        datetime occurred_at
-    }
-
-    TREND_TOPICS {
-        int id PK
-        string topic_key UK
-        string title
-        string cluster_label
-        float community_heat_score
-        datetime last_seen_at
-    }
-
-    TREND_POSTS {
-        int id PK
-        int topic_id FK
-        string post_id
-        string author
-        string url
-        int like_count
-        int collect_count
-        int comment_count
-    }
-
-    TREND_RECOMMENDATIONS {
-        int id PK
-        string recommendation_code UK
-        string recommendation_type
-        string target_style_code
-        string candidate_name
-        float confidence_score
-        string status
-    }
-
-    STYLE_METRICS_DAILY {
-        int id PK
-        string style_id
-        date metric_date
-        int impressions
-        int clicks
-        int tryon_starts
-        int booking_creates
-        float composite_recommendation_score
-    }
-
-    STYLE_LIFECYCLE_REQUESTS {
-        int id PK
-        string request_code UK
-        int requested_by_user_id FK
-        int merchant_id FK
-        string store_code
-        string style_code
-        string requested_action
-        string status
-    }
-
-    MERCHANTS ||--o{ USERS : manages
-    MERCHANTS ||--o{ STORES : owns
-    MERCHANTS ||--o{ STYLE_LIFECYCLE_REQUESTS : submits
-    USERS ||--o{ SESSION_TOKENS : holds
-    USERS ||--o{ FAVORITES : creates
-    USERS ||--o{ BOOKINGS : places
-    USERS ||--o{ TRY_ON_JOBS : starts
-    USERS ||--o{ STYLE_LIFECYCLE_REQUESTS : requests
-    STORES ||--o{ STORE_STYLE_LISTINGS : lists
-    STYLES ||--o{ STORE_STYLE_LISTINGS : appears_in
-    STYLES ||--o{ FAVORITES : is_favorited
-    STYLES ||--o{ BOOKINGS : is_booked
-    STYLES ||--o{ EVENT_LOGS : generates
-    STYLES ||--o{ STYLE_METRICS_DAILY : aggregates
-    STYLES ||--o{ STYLE_LIFECYCLE_REQUESTS : targets
-    NAIL_STYLE_ASSETS }o--|| STYLES : maps_to
-    HAND_IMAGES ||--o{ TRY_ON_RECORDS : source_image
-    NAIL_STYLE_ASSETS ||--o{ TRY_ON_RECORDS : renders
-    TREND_TOPICS ||--o{ TREND_POSTS : contains
-    TREND_TOPICS ||--o{ TREND_RECOMMENDATIONS : produces
-```
-
-### 6.1 ER 图解读
-
-- `users`、`merchants`、`stores` 组成账号与门店权限主干。
-- `styles` 是业务款式主表，`nail_style_assets` 是试戴素材表，两者通过 `style_code` 映射。
-- `favorites`、`bookings`、`event_logs`、`style_metrics_daily` 共同描述用户兴趣与转化漏斗。
-- `hand_images`、`try_on_jobs`、`try_on_records` 描述试戴输入、任务和结果。
-- `trend_topics`、`trend_posts`、`trend_recommendations` 构成社区趋势分析闭环。
-- `style_lifecycle_requests` 用于商家提交上架、下架等生命周期申请，交由运营审核。
-
-## 7. 评测设计与结果
-
-### 7.1 评测数据基础
-
-仓库内的 `命题三美甲评测数据（对外版）.xlsx` 提供了项目初始化与评测基础数据：
-
-- `手图` sheet：25 条手图样本 URL
-- `款式图` sheet：25 条原始款式图 URL
-- `款式图` sheet：25 条增强后款式图 URL
-
-这些数据通过 `import_data.py` 导入，用于构建：
-
-- 试戴素材库
-- 手图样本库
-- 客户端展示与试戴映射关系
-
-### 7.2 评测口径
-
-项目当前围绕三类指标做评测：
-
-| 指标 | 口径 | 数据来源 |
-| --- | --- | --- |
-| 试戴平均时延 | `TryOnRecord.duration_ms` 在时间窗口内的均值，并计算 99% 置信区间 | `try_on_records` |
-| 款式还原度 | `styleFidelity` 评测平均值 | `event_logs` 中质量评测事件 |
-| 手工一致性 | `manualConsistency` 评测平均值 | `event_logs` 中质量评测事件 |
-
-此外，运营侧还会结合：
-
-- 曝光量
-- 点击量
-- 收藏量
-- 试戴开始/完成量
-- 预约创建/确认量
-
-来构建漏斗和推荐分数。
-
-### 7.3 当前可复现样例结果
-
-现有测试 `backend/api/tests/test_api.py` 中已经验证了一组评测样例，结果如下：
-
-| 指标 | 当前样例值 |
+| 指标 | 样例值 |
 | --- | --- |
 | 平均试戴时延 | `10000 ms` |
 | 样本数 | `2` |
@@ -601,37 +85,8 @@ erDiagram
 | 款式还原度 | `0.93` |
 | 手工一致性 | `0.88` |
 
-这些结果来自测试中写入的真实 `TryOnRecord` 和质量评测事件，用于证明：
+这组结果至少说明两件事。第一，评测逻辑已经写进 `backend/`，不是只停在文档层面。第二，现有三仓结构能够支撑从用户试戴到后台分析的整条链路，数据口径也是接得上的。
 
-- 评测逻辑已接入代码，不是文档口径
-- 指标可以从数据库记录中实时聚合
-- 运营端展示的是脱敏聚合结果，而不是硬编码分数
+## 7. 小结
 
-### 7.4 评测结论
-
-从当前实现可以得出三点：
-
-1. 项目已具备可运行的端到端试戴闭环，评测指标能够从真实记录生成。
-2. 趋势推荐链路已具备“采集 - 分析 - 审核 - 执行”的完整结构，不是单纯展示社区帖子。
-3. 数据层仍以 SQLite 和本地文件目录为主，适合演示与比赛环境，但若进入生产级场景还需要进一步演进。
-
-## 8. 项目优势与风险
-
-### 8.1 优势
-
-- 不是单点功能，而是围绕“种草 - 试戴 - 预约 - 运营选款”构建完整业务链路
-- 项目模块划分清晰，已具备按 App、Backend、Web Admin 独立建仓的条件
-- 试戴质量、热度和转化指标已具备可追溯评测口径
-
-### 8.2 风险
-
-- AI 试戴受外部模型可用性和余额状态影响
-- 小红书采集依赖登录态与第三方页面结构
-- SQLite 与单机文件存储更适合演示，不适合高并发扩展
-
-## 9. 后续优化方向
-
-1. 将 SQLite 迁移到更适合多实例写入的数据库。
-2. 将用户手图、试戴结果和款式资源迁移到对象存储。
-3. 为趋势采集和趋势分析增加更完整的任务编排、重试和监控。
-4. 继续补充真实用户试戴样本，形成比赛版或答辩版评测报告。
+按 `app/`、`backend/`、`web-admin/` 这三个目录来理解项目，会比沿用旧的单仓思路清楚很多。`app/` 负责用户入口，`backend/` 承担业务和数据，`web-admin/` 对应后台操作，这三部分各自边界明确，配合关系也比较稳定。对于现在这套项目来说，这样的拆分已经足够支撑演示、答辩和后续继续开发。

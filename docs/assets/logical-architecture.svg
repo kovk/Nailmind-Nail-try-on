@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#475569"/>
+    </marker>
+    <style>
+      .group { fill: none; stroke-width: 2; stroke-dasharray: 6 4; rx: 16; ry: 16; }
+      .box { rx: 12; ry: 12; stroke: #1f2937; stroke-width: 1.4; }
+      .title { font: 16px Arial, sans-serif; fill: #0f172a; font-weight: bold; }
+      .text { font: 14px Arial, sans-serif; fill: #0f172a; text-anchor: middle; dominant-baseline: middle; }
+      .line { stroke: #475569; stroke-width: 2; fill: none; marker-end: url(#arrow); }
+    </style>
+  </defs>
+
+  <rect x="30" y="30" width="280" height="250" class="group" stroke="#60a5fa"/>
+  <text x="50" y="55" class="title">app/</text>
+  <rect x="70" y="90" width="200" height="52" class="box" fill="#e0f2fe"/>
+  <text x="170" y="116" class="text">页面与导航</text>
+  <rect x="70" y="165" width="200" height="52" class="box" fill="#e0f2fe"/>
+  <text x="170" y="191" class="text">data/api</text>
+  <rect x="70" y="240" width="200" height="52" class="box" fill="#e0f2fe"/>
+  <text x="170" y="266" class="text">data/config</text>
+
+  <rect x="355" y="30" width="420" height="560" class="group" stroke="#4ade80"/>
+  <text x="375" y="55" class="title">backend/</text>
+  <rect x="445" y="90" width="240" height="56" class="box" fill="#dcfce7"/>
+  <text x="565" y="118" class="text">FastAPI 主服务</text>
+  <rect x="445" y="185" width="240" height="56" class="box" fill="#dcfce7"/>
+  <text x="565" y="213" class="text">业务模型与数据库访问</text>
+  <rect x="445" y="280" width="240" height="56" class="box" fill="#dcfce7"/>
+  <text x="565" y="308" class="text">AI 试戴服务</text>
+  <rect x="445" y="375" width="240" height="56" class="box" fill="#dcfce7"/>
+  <text x="565" y="403" class="text">埋点与评测服务</text>
+  <rect x="445" y="470" width="240" height="56" class="box" fill="#dcfce7"/>
+  <text x="565" y="498" class="text">NailClaw 趋势服务</text>
+
+  <rect x="830" y="30" width="260" height="170" class="group" stroke="#60a5fa"/>
+  <text x="850" y="55" class="title">web-admin/</text>
+  <rect x="860" y="100" width="200" height="56" class="box" fill="#e0f2fe"/>
+  <text x="960" y="128" class="text">静态页面与交互脚本</text>
+
+  <rect x="830" y="260" width="300" height="250" class="group" stroke="#fbbf24"/>
+  <text x="850" y="285" class="title">外部依赖</text>
+  <rect x="880" y="325" width="200" height="56" class="box" fill="#fef3c7"/>
+  <text x="980" y="353" class="text">DashScope 百炼</text>
+  <rect x="880" y="415" width="200" height="70" class="box" fill="#fef3c7"/>
+  <text x="980" y="442" class="text">redbook / XhsSkills</text>
+  <text x="980" y="466" class="text">社区内容源</text>
+
+  <path d="M170 142 L170 165" class="line"/>
+  <path d="M170 240 L170 217" class="line"/>
+  <path d="M270 191 L445 118" class="line"/>
+  <path d="M1060 128 L685 118" class="line"/>
+  <path d="M565 146 L565 185" class="line"/>
+  <path d="M565 146 L565 280" class="line"/>
+  <path d="M565 146 L565 375" class="line"/>
+  <path d="M565 146 L565 470" class="line"/>
+  <path d="M685 308 L880 353" class="line"/>
+  <path d="M685 498 L880 450" class="line"/>
+  <path d="M565 470 L565 241" class="line"/>
+  <path d="M565 375 L565 241" class="line"/>
+</svg>

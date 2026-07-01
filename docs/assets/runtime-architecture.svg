@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1150" height="430" viewBox="0 0 1150 430">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#475569"/>
+    </marker>
+    <style>
+      .group { fill: none; stroke-width: 2; stroke-dasharray: 6 4; rx: 16; ry: 16; }
+      .box { rx: 12; ry: 12; stroke: #1f2937; stroke-width: 1.4; }
+      .title { font: 16px Arial, sans-serif; fill: #0f172a; font-weight: bold; }
+      .text { font: 14px Arial, sans-serif; fill: #0f172a; text-anchor: middle; dominant-baseline: middle; }
+      .line { stroke: #475569; stroke-width: 2; fill: none; marker-end: url(#arrow); }
+    </style>
+  </defs>
+
+  <rect x="30" y="30" width="230" height="320" class="group" stroke="#60a5fa"/>
+  <text x="50" y="55" class="title">客户端侧</text>
+  <rect x="65" y="105" width="160" height="56" class="box" fill="#e0f2fe"/>
+  <text x="145" y="133" class="text">Android App</text>
+  <rect x="65" y="225" width="160" height="56" class="box" fill="#e0f2fe"/>
+  <text x="145" y="253" class="text">管理端浏览器</text>
+
+  <rect x="320" y="30" width="400" height="320" class="group" stroke="#4ade80"/>
+  <text x="340" y="55" class="title">服务端侧</text>
+  <rect x="355" y="90" width="150" height="56" class="box" fill="#dcfce7"/>
+  <text x="430" y="118" class="text">web-admin</text>
+  <text x="430" y="136" class="text">静态资源</text>
+  <rect x="540" y="90" width="145" height="56" class="box" fill="#dcfce7"/>
+  <text x="612" y="118" class="text">backend/api</text>
+  <text x="612" y="136" class="text">FastAPI</text>
+  <rect x="365" y="230" width="140" height="56" class="box" fill="#fee2e2"/>
+  <text x="435" y="258" class="text">SQLite</text>
+  <rect x="540" y="230" width="145" height="56" class="box" fill="#fee2e2"/>
+  <text x="612" y="258" class="text">DATA_DIR</text>
+
+  <rect x="780" y="30" width="300" height="320" class="group" stroke="#fbbf24"/>
+  <text x="800" y="55" class="title">外部服务</text>
+  <rect x="830" y="105" width="200" height="56" class="box" fill="#fef3c7"/>
+  <text x="930" y="133" class="text">DashScope 百炼</text>
+  <rect x="830" y="225" width="200" height="70" class="box" fill="#fef3c7"/>
+  <text x="930" y="252" class="text">redbook / XhsSkills</text>
+  <text x="930" y="276" class="text">社区内容源</text>
+
+  <path d="M225 133 L540 118" class="line"/>
+  <path d="M225 253 L355 118" class="line"/>
+  <path d="M505 118 L540 118" class="line"/>
+  <path d="M612 146 L435 230" class="line"/>
+  <path d="M612 146 L612 230" class="line"/>
+  <path d="M685 118 L830 133" class="line"/>
+  <path d="M685 130 L830 260" class="line"/>
+</svg>

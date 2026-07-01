@@ -1,0 +1,39 @@
+digraph RuntimeArchitecture {
+  graph [rankdir=LR, bgcolor="white", pad="0.25", nodesep="0.5", ranksep="0.9"];
+  node [shape=box, style="rounded,filled", fontname="Arial", fontsize=11, color="#1f2937", fillcolor="#f8fafc"];
+  edge [color="#475569", arrowsize=0.8, penwidth=1.1];
+
+  subgraph cluster_client {
+    label="客户端侧";
+    color="#93c5fd";
+    style="rounded";
+    phone [label="Android App", fillcolor="#e0f2fe"];
+    browser [label="管理端浏览器", fillcolor="#e0f2fe"];
+  }
+
+  subgraph cluster_server {
+    label="服务端侧";
+    color="#86efac";
+    style="rounded";
+    static [label="web-admin 静态资源", fillcolor="#dcfce7"];
+    fastapi [label="backend/api\nFastAPI", fillcolor="#dcfce7"];
+    db [label="SQLite", fillcolor="#fee2e2"];
+    files [label="DATA_DIR 文件目录", fillcolor="#fee2e2"];
+  }
+
+  subgraph cluster_external {
+    label="外部服务";
+    color="#fcd34d";
+    style="rounded";
+    bailian [label="DashScope 百炼", fillcolor="#fef3c7"];
+    content [label="redbook / XhsSkills\n社区内容源", fillcolor="#fef3c7"];
+  }
+
+  phone -> fastapi;
+  browser -> static;
+  static -> fastapi;
+  fastapi -> db;
+  fastapi -> files;
+  fastapi -> bailian;
+  fastapi -> content;
+}

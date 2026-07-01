@@ -1,0 +1,55 @@
+digraph LogicalArchitecture {
+  graph [rankdir=TB, bgcolor="white", pad="0.25", nodesep="0.45", ranksep="0.7"];
+  node [shape=box, style="rounded,filled", fontname="Arial", fontsize=11, color="#1f2937", fillcolor="#f8fafc"];
+  edge [color="#475569", arrowsize=0.8, penwidth=1.1];
+
+  subgraph cluster_app {
+    label="app/";
+    color="#93c5fd";
+    style="rounded";
+    app_ui [label="页面与导航", fillcolor="#e0f2fe"];
+    app_api [label="data/api", fillcolor="#e0f2fe"];
+    app_cfg [label="data/config", fillcolor="#e0f2fe"];
+  }
+
+  subgraph cluster_backend {
+    label="backend/";
+    color="#86efac";
+    style="rounded";
+    api [label="FastAPI 主服务", fillcolor="#dcfce7"];
+    domain [label="业务模型与数据库访问", fillcolor="#dcfce7"];
+    tryon [label="AI 试戴服务", fillcolor="#dcfce7"];
+    metric [label="埋点与评测服务", fillcolor="#dcfce7"];
+    nailclaw [label="NailClaw 趋势服务", fillcolor="#dcfce7"];
+  }
+
+  subgraph cluster_web {
+    label="web-admin/";
+    color="#93c5fd";
+    style="rounded";
+    web_ui [label="静态页面与交互脚本", fillcolor="#e0f2fe"];
+  }
+
+  subgraph cluster_external {
+    label="外部依赖";
+    color="#fcd34d";
+    style="rounded";
+    bailian [label="DashScope 百炼", fillcolor="#fef3c7"];
+    content [label="redbook / XhsSkills\n社区内容源", fillcolor="#fef3c7"];
+  }
+
+  app_ui -> app_api;
+  app_cfg -> app_api;
+  app_api -> api;
+  web_ui -> api;
+
+  api -> domain;
+  api -> tryon;
+  api -> metric;
+  api -> nailclaw;
+
+  tryon -> bailian;
+  metric -> domain;
+  nailclaw -> domain;
+  nailclaw -> content;
+}
