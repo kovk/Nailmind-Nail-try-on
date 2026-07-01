@@ -52,18 +52,26 @@ NailMind 面向两个场景：用户选款和平台运营。对用户来说，�
 
 ## 5. 数据表设计
 
-数据库模型定义在 `backend/api/app/models.py`，主要关系如下图所示。
+数据库模型定义在 `backend/api/app/models.py`。这里不再把全部数据表塞进一张图里，而是拆成核心业务和运营分析两部分。
 
-![数据库 ER 图](./assets/database-er.svg)
+### 5.1 核心业务表
 
-表结构大致可以分成四组：
+![核心业务 ER 图](./assets/business-er.svg)
 
-- 用户与权限：`users`、`merchants`、`session_tokens`
-- 内容与交易：`styles`、`stores`、`favorites`、`bookings`
-- 试戴相关：`hand_images`、`nail_style_assets`、`try_on_jobs`、`try_on_records`
+这一部分覆盖用户、门店、款式、收藏、预约和试戴记录，主要服务于用户下单链路和商家履约链路。
+
+### 5.2 运营分析表
+
+![运营分析 ER 图](./assets/analytics-er.svg)
+
+这一部分覆盖事件埋点、日指标、趋势主题、帖子样本和候选建议，主要服务于后台分析和趋势推荐。
+
+表结构可以概括成两组：
+
+- 核心业务：`users`、`merchants`、`stores`、`styles`、`favorites`、`bookings`、`hand_images`、`nail_style_assets`、`try_on_records`
 - 运营分析：`event_logs`、`style_metrics_daily`、`trend_topics`、`trend_posts`、`trend_recommendations`
 
-这一组模型基本覆盖了用户侧行为、门店经营数据和运营分析数据，也能支撑前面提到的三条核心流程。
+这样拆开以后，主业务链路和分析链路会更清楚，也更方便在答辩时逐段说明。
 
 ## 6. 评测结果
 
