@@ -15,41 +15,41 @@
 
   <rect x="0" y="0" width="1320" height="420" fill="#ffffff"/>
 
-  <rect x="40" y="60" width="240" height="260" class="group" stroke="#60a5fa"/>
+  <rect x="40" y="60" width="240" height="270" class="group" stroke="#60a5fa"/>
   <text x="68" y="92" class="title">客户端</text>
   <rect x="75" y="120" width="170" height="64" class="box" fill="#e0f2fe"/>
   <text x="160" y="154" class="text">Android App</text>
-  <rect x="75" y="215" width="170" height="64" class="box" fill="#e0f2fe"/>
-  <text x="160" y="249" class="text">管理端浏览器</text>
+  <rect x="75" y="225" width="170" height="64" class="box" fill="#e0f2fe"/>
+  <text x="160" y="259" class="text">管理端浏览器</text>
 
-  <rect x="350" y="40" width="500" height="300" class="group" stroke="#4ade80"/>
+  <rect x="350" y="40" width="500" height="310" class="group" stroke="#4ade80"/>
   <text x="378" y="72" class="title">应用服务</text>
   <rect x="405" y="120" width="170" height="64" class="box" fill="#dcfce7"/>
-  <text x="490" y="146" class="small">静态资源</text>
+  <text x="490" y="146" class="small">后台前端资源</text>
   <text x="490" y="164" class="text">web-admin</text>
   <rect x="625" y="120" width="170" height="64" class="box" fill="#dcfce7"/>
-  <text x="710" y="146" class="small">API 入口</text>
+  <text x="710" y="146" class="small">统一接口入口</text>
   <text x="710" y="164" class="text">backend/api</text>
-  <rect x="405" y="235" width="170" height="64" class="box" fill="#fee2e2"/>
-  <text x="490" y="261" class="small">关系数据</text>
-  <text x="490" y="279" class="text">SQLite</text>
-  <rect x="625" y="235" width="170" height="64" class="box" fill="#fee2e2"/>
-  <text x="710" y="261" class="small">文件与结果</text>
-  <text x="710" y="279" class="text">DATA_DIR</text>
+  <rect x="405" y="245" width="170" height="64" class="box" fill="#fee2e2"/>
+  <text x="490" y="271" class="small">关系数据</text>
+  <text x="490" y="289" class="text">SQLite</text>
+  <rect x="625" y="245" width="170" height="64" class="box" fill="#fee2e2"/>
+  <text x="710" y="271" class="small">图片与结果</text>
+  <text x="710" y="289" class="text">DATA_DIR</text>
 
-  <rect x="920" y="60" width="320" height="260" class="group" stroke="#fbbf24"/>
+  <rect x="920" y="60" width="320" height="270" class="group" stroke="#fbbf24"/>
   <text x="948" y="92" class="title">外部依赖</text>
   <rect x="980" y="120" width="200" height="64" class="box" fill="#fef3c7"/>
   <text x="1080" y="154" class="text">大模型</text>
-  <rect x="980" y="215" width="200" height="64" class="box" fill="#fef3c7"/>
-  <text x="1080" y="241" class="small">趋势采集来源</text>
-  <text x="1080" y="259" class="text">社区内容源</text>
+  <rect x="980" y="225" width="200" height="64" class="box" fill="#fef3c7"/>
+  <text x="1080" y="251" class="small">趋势采集来源</text>
+  <text x="1080" y="269" class="text">社区内容源</text>
 
   <path d="M245 152 L625 152" class="line"/>
-  <path d="M245 247 L405 152" class="line"/>
+  <path d="M245 257 L405 152" class="line"/>
   <path d="M575 152 L625 152" class="line"/>
-  <path d="M710 184 L490 235" class="line"/>
-  <path d="M710 184 L710 235" class="line"/>
+  <path d="M710 184 L490 245" class="line"/>
+  <path d="M710 184 L710 245" class="line"/>
   <path d="M795 152 L980 152" class="line"/>
-  <path d="M795 170 L980 247" class="line"/>
+  <path d="M795 170 L980 257" class="line"/>
 </svg>
