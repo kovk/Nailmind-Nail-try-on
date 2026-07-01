@@ -34,7 +34,7 @@ NailMind 面向两个场景：用户选款和平台运营。对用户来说，�
 
 ![NailClaw 架构图](./assets/nailclaw-architecture.svg)
 
-`NailClaw` 是这套系统里和运营价值最直接相关的模块，所以单独拆开来看更合适。它的职责不是出图，而是把社区内容采集、样本归一化、趋势分析和建议回写串成一条链路。外部数据源先通过 Provider 接入，`collect_nailclaw_trends` 负责统一收口，`NailClawAgent` 再结合站内数据生成候选建议，最后写入 `trend_topics`、`trend_posts` 和 `trend_recommendations`，供 `web-admin` 查看、采纳和回写。
+`NailClaw` 更适合按 agent 结构来理解，而不是把它看成普通后端服务。它的输入上下文来自社区样本和站内指标，`Role / Prompt` 负责限定分析目标和输出格式，`Model` 负责生成候选建议，`Tools` 负责采集、查库和写库，`Skills / Workflow` 把采集、归一化、分析和回写串成固定流程，`Planner` 决定当前走哪条分析路径，最后再通过 `Evaluator / Guardrail` 做去重、格式校验和可落地性检查。输出结果会进入趋势看板和建议表，供运营继续处理。
 
 ### 3.4 NailClaw 记忆闭环
 

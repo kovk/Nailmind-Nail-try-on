@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1380" height="520" viewBox="0 0 1380 520">
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="700" viewBox="0 0 1440 700">
   <defs>
     <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
       <path d="M0,0 L0,6 L9,3 z" fill="#475569"/>
@@ -13,50 +13,76 @@
     </style>
   </defs>
 
-  <rect x="0" y="0" width="1380" height="520" fill="#ffffff"/>
+  <rect x="0" y="0" width="1440" height="700" fill="#ffffff"/>
 
-  <rect x="40" y="80" width="250" height="150" class="group" stroke="#fbbf24"/>
-  <text x="68" y="112" class="title">外部数据源</text>
-  <rect x="80" y="135" width="170" height="58" class="box" fill="#fef3c7"/>
-  <text x="165" y="161" class="small">Provider 输入</text>
-  <text x="165" y="178" class="label">redbook / dianping</text>
+  <rect x="40" y="90" width="240" height="170" class="group" stroke="#fbbf24"/>
+  <text x="68" y="122" class="title">输入上下文</text>
+  <rect x="75" y="145" width="170" height="56" class="box" fill="#fef3c7"/>
+  <text x="160" y="171" class="small">外部证据</text>
+  <text x="160" y="188" class="label">社区样本 / 热帖</text>
+  <rect x="75" y="215" width="170" height="56" class="box" fill="#fef3c7"/>
+  <text x="160" y="241" class="small">站内证据</text>
+  <text x="160" y="258" class="label">指标 / 款式数据</text>
 
-  <rect x="340" y="50" width="700" height="380" class="group" stroke="#4ade80"/>
-  <text x="368" y="82" class="title">backend / NailClaw</text>
+  <rect x="330" y="50" width="760" height="500" class="group" stroke="#4ade80"/>
+  <text x="358" y="82" class="title">NailClaw Agent</text>
 
-  <rect x="390" y="125" width="200" height="64" class="box" fill="#dcfce7"/>
-  <text x="490" y="151" class="small">采集入口</text>
-  <text x="490" y="168" class="label">Trend Provider</text>
+  <rect x="380" y="120" width="190" height="66" class="box" fill="#dcfce7"/>
+  <text x="475" y="146" class="small">角色定义</text>
+  <text x="475" y="165" class="label">Role / Prompt</text>
 
-  <rect x="680" y="125" width="200" height="64" class="box" fill="#dcfce7"/>
-  <text x="780" y="151" class="small">归一化结果</text>
-  <text x="780" y="168" class="label">collect_nailclaw_trends</text>
+  <rect x="625" y="120" width="190" height="66" class="box" fill="#dcfce7"/>
+  <text x="720" y="146" class="small">推理核心</text>
+  <text x="720" y="165" class="label">Model</text>
 
-  <rect x="390" y="260" width="200" height="74" class="box" fill="#dcfce7"/>
-  <text x="490" y="286" class="small">分析核心</text>
-  <text x="490" y="307" class="label">NailClawAgent</text>
+  <rect x="870" y="120" width="170" height="66" class="box" fill="#dcfce7"/>
+  <text x="955" y="146" class="small">决策控制</text>
+  <text x="955" y="165" class="label">Planner</text>
 
-  <rect x="680" y="260" width="200" height="74" class="box" fill="#fee2e2"/>
-  <text x="780" y="286" class="small">落库结果</text>
-  <text x="780" y="307" class="label">trend_topics / posts /</text>
-  <text x="780" y="326" class="label">recommendations</text>
+  <rect x="380" y="260" width="190" height="86" class="box" fill="#eff6ff"/>
+  <text x="475" y="286" class="small">可调用能力</text>
+  <text x="475" y="305" class="label">Tools</text>
+  <text x="475" y="326" class="label">采集 / 查库 / 写库</text>
 
-  <rect x="1090" y="80" width="250" height="150" class="group" stroke="#60a5fa"/>
-  <text x="1118" y="112" class="title">web-admin</text>
-  <rect x="1130" y="135" width="170" height="58" class="box" fill="#eff6ff"/>
-  <text x="1215" y="161" class="small">后台入口</text>
-  <text x="1215" y="178" class="label">趋势看板 / 采纳操作</text>
+  <rect x="625" y="260" width="190" height="86" class="box" fill="#eff6ff"/>
+  <text x="720" y="286" class="small">任务编排</text>
+  <text x="720" y="305" class="label">Skills / Workflow</text>
+  <text x="720" y="326" class="label">采集→归一化→分析→建议</text>
 
-  <rect x="1090" y="280" width="250" height="110" class="group" stroke="#60a5fa"/>
-  <text x="1118" y="312" class="title">调度入口</text>
-  <rect x="1130" y="325" width="170" height="46" class="box" fill="#eff6ff"/>
-  <text x="1215" y="351" class="label">/admin/trends/*</text>
+  <rect x="870" y="260" width="170" height="86" class="box" fill="#fee2e2"/>
+  <text x="955" y="286" class="small">状态沉淀</text>
+  <text x="955" y="305" class="label">Memory / State</text>
+  <text x="955" y="326" class="label">建议历史 / 反馈</text>
 
-  <path d="M250 164 L390 157" class="line"/>
-  <path d="M590 157 L680 157" class="line"/>
-  <path d="M780 189 L780 260" class="line"/>
-  <path d="M680 297 L590 297" class="line"/>
-  <path d="M590 297 L680 297" class="line"/>
-  <path d="M880 297 L1130 164" class="line"/>
-  <path d="M1215 325 L880 297" class="line"/>
+  <rect x="500" y="410" width="250" height="84" class="box" fill="#dcfce7"/>
+  <text x="625" y="436" class="small">结果约束</text>
+  <text x="625" y="456" class="label">Evaluator / Guardrail</text>
+  <text x="625" y="476" class="label">去重 / 格式校验 / 可落地性</text>
+
+  <rect x="1160" y="120" width="240" height="170" class="group" stroke="#60a5fa"/>
+  <text x="1188" y="152" class="title">输出结果</text>
+  <rect x="1195" y="175" width="170" height="56" class="box" fill="#eff6ff"/>
+  <text x="1280" y="201" class="small">后台使用</text>
+  <text x="1280" y="218" class="label">趋势看板 / 采纳操作</text>
+  <rect x="1195" y="245" width="170" height="56" class="box" fill="#eff6ff"/>
+  <text x="1280" y="271" class="small">落库结果</text>
+  <text x="1280" y="288" class="label">recommendations</text>
+
+  <path d="M245 173 L380 153" class="line"/>
+  <path d="M245 243 L380 153" class="line"/>
+  <path d="M570 153 L625 153" class="line"/>
+  <path d="M815 153 L870 153" class="line"/>
+
+  <path d="M955 186 L955 260" class="line"/>
+  <path d="M720 186 L720 260" class="line"/>
+  <path d="M475 186 L475 260" class="line"/>
+
+  <path d="M570 303 L625 303" class="line"/>
+  <path d="M815 303 L870 303" class="line"/>
+
+  <path d="M720 346 L625 410" class="line"/>
+  <path d="M955 346 L750 410" class="line"/>
+
+  <path d="M1040 153 L1195 203" class="line"/>
+  <path d="M750 452 L1195 273" class="line"/>
 </svg>
