@@ -42,26 +42,152 @@ NailMind 是一个面向美甲消费与门店运营的 AI 项目，目标不是�
 3. 如何把小红书趋势、站内埋点和模型建议串成闭环，而不是孤立展示。
 4. 如何在演示和比赛环境下，用真实数据而不是硬编码假指标支撑评测结果。
 
-## 3. 项目总体架构
+## 3. 项目架构设计
+
+当前系统不应只用一张“谁连谁”的示意图来描述。为了避免把业务流程误写成架构，这里将架构拆成三个视角：系统上下文、逻辑架构、部署与运行架构。
+
+### 3.1 系统上下文图
+
+这张图回答“系统外部有哪些参与者，分别通过什么边界与系统交互”。
 
 ```mermaid
 flowchart LR
-    A["Android App<br/>Jetpack Compose"] --> B["FastAPI API"]
-    C["Web Admin<br/>运营端 / 商家端"] --> B
+    U["普通用户"] --> APP["Android App"]
+    M["商家管理员"] --> WEB["Web Admin"]
+    O["平台运营管理员"] --> WEB
 
-    B --> D["SQLite / SQLAlchemy"]
-    B --> E["DATA_DIR 文件存储"]
-    B --> F["DashScope 百炼<br/>qwen-image-2.0-pro"]
+    APP --> SYS["NailMind 平台系统"]
+    WEB --> SYS
 
-    G["XHS 账号矩阵 / XhsSkills"] --> B
-    B --> H["Trend Topics / Trend Posts"]
-    H --> I["trend_agent"]
-    I --> J["OpenClaw + MiMo v2.5 Pro"]
-    J --> K["Trend Recommendations"]
-    K --> B
+    SYS --> DS["DashScope 百炼"]
+    SYS --> XHS["小红书账号矩阵 / XhsSkills"]
+    SYS --> OC["OpenClaw + MiMo v2.5 Pro"]
+    SYS --> DATA["本地数据库与文件资源"]
 ```
 
-### 3.1 模块划分
+这个视角只强调系统边界：
+
+- 用户只通过 Android App 访问 C 端能力。
+- 商家与运营通过同一个 Web Admin 入口访问不同权限能力。
+- 百炼、小红书采集能力、OpenClaw 都是系统外部依赖，不属于平台内部业务模块。
+
+### 3.2 逻辑架构图
+
+这张图回答“系统内部有哪些核心子系统，各自负责什么能力，以及它们如何协作”。
+
+```mermaid
+flowchart TB
+    subgraph Client["接入层"]
+        APP["Android App"]
+        WEB["Web Admin"]
+    end
+
+    subgraph API["应用服务层 / FastAPI"]
+        AUTH["认证与权限模块"]
+        CATALOG["款式 / 收藏 / 门店 / 预约模块"]
+        TRYON["AI 试戴编排模块"]
+        ANALYTICS["埋点与运营分析模块"]
+        TRENDCTRL["趋势采集与推荐控制模块"]
+    end
+
+    subgraph Data["数据与资源层"]
+        DB["SQLite / SQLAlchemy"]
+        FS["DATA_DIR 文件存储"]
+    end
+
+    subgraph AI["外部 AI 与内容分析能力"]
+        BAILIAN["DashScope 百炼试戴生成"]
+        XHSCOL["XhsSkills / 账号矩阵采集"]
+        TRENDAGENT["trend_agent 离线推荐生成器"]
+        OPENCLAW["OpenClaw + MiMo v2.5 Pro"]
+    end
+
+    APP --> AUTH
+    APP --> CATALOG
+    APP --> TRYON
+    APP --> ANALYTICS
+
+    WEB --> AUTH
+    WEB --> CATALOG
+    WEB --> ANALYTICS
+    WEB --> TRENDCTRL
+
+    AUTH --> DB
+    CATALOG --> DB
+    TRYON --> DB
+    TRYON --> FS
+    ANALYTICS --> DB
+    TRENDCTRL --> DB
+
+    TRYON --> BAILIAN
+    TRENDCTRL --> XHSCOL
+    TRENDCTRL --> TRENDAGENT
+    TRENDAGENT --> OPENCLAW
+    TRENDAGENT --> DB
+```
+
+逻辑上可以分成四层：
+
+- 接入层：Android App 与 Web Admin，分别面向消费者和后台角色。
+- 应用服务层：FastAPI 内部按职责分为认证、交易、试戴、分析和趋势控制模块。
+- 数据与资源层：数据库负责结构化业务数据，文件存储负责款式图、手图和试戴结果图。
+- 外部能力层：百炼负责试戴生成，小红书采集负责内容抓取，OpenClaw 负责趋势总结。
+
+### 3.3 运行与部署架构图
+
+这张图回答“实际运行时哪些组件在同一进程/仓库里，哪些是外部服务，哪些是离线任务”。
+
+```mermaid
+flowchart LR
+    subgraph Device["用户设备"]
+        APP["Android App"]
+        BROWSER["运营 / 商家浏览器"]
+    end
+
+    subgraph Server["NailMind 服务节点"]
+        API["FastAPI 主服务"]
+        STATIC["Web Admin 静态资源"]
+        DB["SQLite 数据库"]
+        FILES["本地文件目录 DATA_DIR"]
+        AGENT["trend_agent 定时/离线任务"]
+    end
+
+    subgraph External["外部依赖"]
+        BAILIAN["DashScope 百炼"]
+        XHSCOL["XHS 账号矩阵 / XhsSkills"]
+        OPENCLAW["OpenClaw + MiMo"]
+    end
+
+    APP --> API
+    BROWSER --> STATIC
+    STATIC --> API
+
+    API --> DB
+    API --> FILES
+    API --> BAILIAN
+    API --> XHSCOL
+
+    AGENT --> DB
+    AGENT --> OPENCLAW
+```
+
+运行特征如下：
+
+- `FastAPI` 是主在线服务，承接 App 与管理端 API 请求。
+- `Web Admin` 目前是静态页面资源，本身不承担业务逻辑，核心逻辑仍在后端 API。
+- `trend_agent` 是离线任务组件，不在用户同步请求链路中。
+- `SQLite + DATA_DIR` 构成当前演示环境的数据平面，说明系统现在更偏单机部署。
+
+### 3.4 架构分层与职责
+
+| 架构层 | 核心组件 | 主要职责 |
+| --- | --- | --- |
+| 接入层 | Android App、Web Admin | 展示界面、发起请求、承载用户与后台交互 |
+| 业务编排层 | FastAPI 主服务 | 统一鉴权、路由编排、业务规则、结果聚合 |
+| 算法与分析层 | 百炼、trend_agent、OpenClaw、XhsSkills | 试戴生成、社区采集、趋势总结 |
+| 数据层 | SQLite、文件目录 | 业务表、埋点、趋势记录、图片资源 |
+
+### 3.5 模块划分
 
 | 模块 | 目录 | 职责 |
 | --- | --- | --- |
@@ -71,7 +197,7 @@ flowchart LR
 | 管理端前端 | `web-admin` | 商家与运营管理页面 |
 | 项目文档与方案 | `docs` | 设计、方案、说明文档 |
 
-### 3.2 拆分原则
+### 3.6 仓库拆分原则
 
 当前工作区同时保留原单仓库目录和拆分后目录：
 
