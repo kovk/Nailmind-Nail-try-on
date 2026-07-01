@@ -30,6 +30,12 @@ NailMind 面向两个场景：用户选款和平台运营。对用户来说，�
 
 从运行方式看，`backend/api` 是主服务，承担 API 路由、业务编排和数据读写；`web-admin/` 提供静态页面资源；`app/` 和后台浏览器都通过接口访问后端。当前数据平面还是单机式的 `SQLite + DATA_DIR`，更适合演示和比赛环境，结构简单，调试方便。
 
+### 3.3 NailClaw 架构
+
+![NailClaw 架构图](./assets/nailclaw-architecture.svg)
+
+`NailClaw` 是这套系统里和运营价值最直接相关的模块，所以单独拆开来看更合适。它的职责不是出图，而是把社区内容采集、样本归一化、趋势分析和建议回写串成一条链路。外部数据源先通过 Provider 接入，`collect_nailclaw_trends` 负责统一收口，`NailClawAgent` 再结合站内数据生成候选建议，最后写入 `trend_topics`、`trend_posts` 和 `trend_recommendations`，供 `web-admin` 查看、采纳和回写。
+
 ## 4. 核心流程
 
 ### 4.1 AI 试戴流程

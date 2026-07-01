@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1380" height="520" viewBox="0 0 1380 520">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#475569"/>
+    </marker>
+    <style>
+      .group { fill: none; stroke-width: 2; stroke-dasharray: 7 5; rx: 18; ry: 18; }
+      .box { rx: 14; ry: 14; stroke: #334155; stroke-width: 1.5; }
+      .title { font: 18px Arial, sans-serif; font-weight: bold; fill: #0f172a; }
+      .label { font: 16px Arial, sans-serif; fill: #0f172a; text-anchor: middle; dominant-baseline: middle; }
+      .small { font: 12px Arial, sans-serif; fill: #64748b; text-anchor: middle; }
+      .line { stroke: #475569; stroke-width: 2; fill: none; marker-end: url(#arrow); }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1380" height="520" fill="#ffffff"/>
+
+  <rect x="40" y="80" width="250" height="150" class="group" stroke="#fbbf24"/>
+  <text x="68" y="112" class="title">外部数据源</text>
+  <rect x="80" y="135" width="170" height="58" class="box" fill="#fef3c7"/>
+  <text x="165" y="161" class="small">Provider 输入</text>
+  <text x="165" y="178" class="label">redbook / dianping</text>
+
+  <rect x="340" y="50" width="700" height="380" class="group" stroke="#4ade80"/>
+  <text x="368" y="82" class="title">backend / NailClaw</text>
+
+  <rect x="390" y="125" width="200" height="64" class="box" fill="#dcfce7"/>
+  <text x="490" y="151" class="small">采集入口</text>
+  <text x="490" y="168" class="label">Trend Provider</text>
+
+  <rect x="680" y="125" width="200" height="64" class="box" fill="#dcfce7"/>
+  <text x="780" y="151" class="small">归一化结果</text>
+  <text x="780" y="168" class="label">collect_nailclaw_trends</text>
+
+  <rect x="390" y="260" width="200" height="74" class="box" fill="#dcfce7"/>
+  <text x="490" y="286" class="small">分析核心</text>
+  <text x="490" y="307" class="label">NailClawAgent</text>
+
+  <rect x="680" y="260" width="200" height="74" class="box" fill="#fee2e2"/>
+  <text x="780" y="286" class="small">落库结果</text>
+  <text x="780" y="307" class="label">trend_topics / posts /</text>
+  <text x="780" y="326" class="label">recommendations</text>
+
+  <rect x="1090" y="80" width="250" height="150" class="group" stroke="#60a5fa"/>
+  <text x="1118" y="112" class="title">web-admin</text>
+  <rect x="1130" y="135" width="170" height="58" class="box" fill="#eff6ff"/>
+  <text x="1215" y="161" class="small">后台入口</text>
+  <text x="1215" y="178" class="label">趋势看板 / 采纳操作</text>
+
+  <rect x="1090" y="280" width="250" height="110" class="group" stroke="#60a5fa"/>
+  <text x="1118" y="312" class="title">调度入口</text>
+  <rect x="1130" y="325" width="170" height="46" class="box" fill="#eff6ff"/>
+  <text x="1215" y="351" class="label">/admin/trends/*</text>
+
+  <path d="M250 164 L390 157" class="line"/>
+  <path d="M590 157 L680 157" class="line"/>
+  <path d="M780 189 L780 260" class="line"/>
+  <path d="M680 297 L590 297" class="line"/>
+  <path d="M590 297 L680 297" class="line"/>
+  <path d="M880 297 L1130 164" class="line"/>
+  <path d="M1215 325 L880 297" class="line"/>
+</svg>
