@@ -1,9 +1,23 @@
 .DS_Store
 
+# Root showcase repo keeps docs only
+app/
+backend/
+web-admin/
+client/
+server/
+tools/
+SPLIT_REPOS.md
+命题三美甲评测数据（对外版）.xlsx
+NailMind.apk
+
 # IDE and local tool state
 .idea/
 .gradle/
 .kotlin/
+tools/redbook/node_modules/
+tools/redbook/package-lock.json
+tools/redbook/package.json
 
 # Android / Gradle
 client/android/.gradle/
