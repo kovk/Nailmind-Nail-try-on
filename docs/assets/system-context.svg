@@ -31,7 +31,7 @@
   <text x="630" y="170" class="t">FastAPI 主服务</text>
 
   <rect x="820" y="40" width="210" height="54" class="box" fill="#fef3c7"/>
-  <text x="925" y="67" class="t">DashScope 百炼</text>
+  <text x="925" y="67" class="t">大模型</text>
   <rect x="820" y="130" width="210" height="66" class="box" fill="#fef3c7"/>
   <text x="925" y="155" class="t">redbook / XhsSkills</text>
   <text x="925" y="178" class="t">社区内容源</text>

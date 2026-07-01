@@ -47,7 +47,7 @@
   <rect x="1015" y="295" width="220" height="120" class="group" stroke="#fbbf24"/>
   <text x="1040" y="325" class="title">外部依赖</text>
   <rect x="1055" y="345" width="140" height="50" class="box" fill="#fef3c7"/>
-  <text x="1125" y="371" class="label">百炼 / 社区源</text>
+  <text x="1125" y="371" class="label">大模型 / 社区源</text>
 
   <path d="M220 170 L560 143" class="line"/>
   <path d="M1055 170 L720 146" class="line"/>

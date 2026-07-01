@@ -35,7 +35,7 @@
   <rect x="780" y="30" width="300" height="320" class="group" stroke="#fbbf24"/>
   <text x="800" y="55" class="title">外部服务</text>
   <rect x="830" y="105" width="200" height="56" class="box" fill="#fef3c7"/>
-  <text x="930" y="133" class="text">DashScope 百炼</text>
+  <text x="930" y="133" class="text">大模型</text>
   <rect x="830" y="225" width="200" height="70" class="box" fill="#fef3c7"/>
   <text x="930" y="252" class="text">redbook / XhsSkills</text>
   <text x="930" y="276" class="text">社区内容源</text>

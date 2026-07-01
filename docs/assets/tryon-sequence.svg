@@ -23,7 +23,7 @@
   <rect x="770" y="60" width="140" height="42" class="box" fill="#fee2e2"/>
   <text x="840" y="86" class="actor">DATA_DIR</text>
   <rect x="1010" y="60" width="160" height="42" class="box" fill="#fef3c7"/>
-  <text x="1090" y="86" class="actor">DashScope 百炼</text>
+  <text x="1090" y="86" class="actor">大模型</text>
 
   <line x1="100" y1="102" x2="100" y2="470" class="lifeline"/>
   <line x1="325" y1="102" x2="325" y2="470" class="lifeline"/>

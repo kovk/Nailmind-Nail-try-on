@@ -34,7 +34,7 @@ digraph LogicalArchitecture {
     label="外部依赖";
     color="#fcd34d";
     style="rounded";
-    bailian [label="DashScope 百炼", fillcolor="#fef3c7"];
+    bailian [label="大模型", fillcolor="#fef3c7"];
     content [label="redbook / XhsSkills", fillcolor="#fef3c7"];
   }
 
