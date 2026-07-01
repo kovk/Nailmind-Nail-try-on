@@ -26,7 +26,7 @@ NailMind 面向两个场景：用户选款和平台运营。对用户来说，�
 
 ### 3.2 运行结构
 
-![运行结构图](./assets/uml-deployment.svg)
+![运行结构图](./assets/runtime-architecture.svg)
 
 从运行方式看，`backend/api` 是主服务，承担 API 路由、业务编排和数据读写；`web-admin/` 提供静态页面资源；`app/` 和后台浏览器都通过接口访问后端。当前数据平面还是单机式的 `SQLite + DATA_DIR`，更适合演示和比赛环境，结构简单，调试方便。
 
