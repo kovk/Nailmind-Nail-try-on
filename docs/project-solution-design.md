@@ -24,19 +24,13 @@ NailMind 面向两个场景：用户选款和平台运营。对用户来说，�
 
 这一节只保留最核心的结构。`app/` 和 `web-admin/` 作为两个入口，统一访问 `backend/`；后端内部再分成业务服务和能力服务两层，下面接数据存储，右侧接外部能力。这样能先看清主链路，再去展开细节。
 
-### 3.2 运行结构
-
-![运行结构图](./assets/runtime-architecture.svg)
-
-从运行方式看，`backend/api` 是主服务，承担 API 路由、业务编排和数据读写；`web-admin/` 提供静态页面资源；`app/` 和后台浏览器都通过接口访问后端。当前数据平面还是单机式的 `SQLite + DATA_DIR`，更适合演示和比赛环境，结构简单，调试方便。
-
-### 3.3 NailClaw 架构
+### 3.2 NailClaw 架构
 
 ![NailClaw 架构图](./assets/nailclaw-architecture.svg)
 
 `NailClaw` 更适合按 agent 结构来理解，而不是把它看成普通后端服务。它的输入上下文来自社区样本和站内指标，`Role / Prompt` 负责限定分析目标和输出格式，`Model` 负责生成候选建议，`Tools` 负责采集、查库和写库，`Skills / Workflow` 把采集、归一化、分析和回写串成固定流程，`Planner` 决定当前走哪条分析路径，最后再通过 `Evaluator / Guardrail` 做去重、格式校验和可落地性检查。输出结果会进入趋势看板和建议表，供运营继续处理。
 
-### 3.4 NailClaw 记忆闭环
+### 3.3 NailClaw 记忆闭环
 
 ![NailClaw 记忆闭环](./assets/nailclaw-memory-loop.svg)
 
