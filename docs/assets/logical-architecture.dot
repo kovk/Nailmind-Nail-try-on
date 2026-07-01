@@ -1,6 +1,6 @@
 digraph LogicalArchitecture {
-  graph [rankdir=TB, bgcolor="white", pad="0.25", nodesep="0.45", ranksep="0.7"];
-  node [shape=box, style="rounded,filled", fontname="Arial", fontsize=11, color="#1f2937", fillcolor="#f8fafc"];
+  graph [rankdir=LR, bgcolor="white", pad="0.3", nodesep="0.55", ranksep="0.95", splines=ortho];
+  node [shape=box, style="rounded,filled", fontname="Arial", fontsize=11, color="#1f2937", fillcolor="#f8fafc", margin="0.18,0.12"];
   edge [color="#475569", arrowsize=0.8, penwidth=1.1];
 
   subgraph cluster_app {
@@ -8,26 +8,26 @@ digraph LogicalArchitecture {
     color="#93c5fd";
     style="rounded";
     app_ui [label="页面与导航", fillcolor="#e0f2fe"];
-    app_api [label="data/api", fillcolor="#e0f2fe"];
-    app_cfg [label="data/config", fillcolor="#e0f2fe"];
+    app_api [label="API Client / Repository", fillcolor="#e0f2fe"];
   }
 
   subgraph cluster_backend {
     label="backend/";
     color="#86efac";
     style="rounded";
-    api [label="FastAPI 主服务", fillcolor="#dcfce7"];
-    domain [label="业务模型与数据库访问", fillcolor="#dcfce7"];
+    api [label="FastAPI API", fillcolor="#dcfce7"];
+    domain [label="认证 / 业务域", fillcolor="#dcfce7"];
     tryon [label="AI 试戴服务", fillcolor="#dcfce7"];
-    metric [label="埋点与评测服务", fillcolor="#dcfce7"];
-    nailclaw [label="NailClaw 趋势服务", fillcolor="#dcfce7"];
+    metric [label="埋点与评测", fillcolor="#dcfce7"];
+    nailclaw [label="趋势分析服务", fillcolor="#dcfce7"];
+    storage [label="SQLite + DATA_DIR", fillcolor="#fee2e2"];
   }
 
   subgraph cluster_web {
     label="web-admin/";
     color="#93c5fd";
     style="rounded";
-    web_ui [label="静态页面与交互脚本", fillcolor="#e0f2fe"];
+    web_ui [label="Admin UI", fillcolor="#e0f2fe"];
   }
 
   subgraph cluster_external {
@@ -35,11 +35,10 @@ digraph LogicalArchitecture {
     color="#fcd34d";
     style="rounded";
     bailian [label="DashScope 百炼", fillcolor="#fef3c7"];
-    content [label="redbook / XhsSkills\n社区内容源", fillcolor="#fef3c7"];
+    content [label="redbook / XhsSkills", fillcolor="#fef3c7"];
   }
 
   app_ui -> app_api;
-  app_cfg -> app_api;
   app_api -> api;
   web_ui -> api;
 
@@ -48,8 +47,14 @@ digraph LogicalArchitecture {
   api -> metric;
   api -> nailclaw;
 
+  domain -> storage;
+  metric -> storage;
+  nailclaw -> storage;
   tryon -> bailian;
-  metric -> domain;
-  nailclaw -> domain;
   nailclaw -> content;
+
+  { rank=same; app_ui; web_ui; }
+  { rank=same; api; }
+  { rank=same; domain; tryon; metric; nailclaw; }
+  { rank=same; storage; bailian; content; }
 }
