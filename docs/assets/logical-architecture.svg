@@ -1,82 +1,59 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640">
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="560" viewBox="0 0 1280 560">
   <defs>
     <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
       <path d="M0,0 L0,6 L9,3 z" fill="#475569"/>
     </marker>
     <style>
       .group { fill: none; stroke-width: 2; stroke-dasharray: 7 5; rx: 18; ry: 18; }
-      .box { rx: 14; ry: 14; stroke: #1f2937; stroke-width: 1.5; }
+      .box { rx: 14; ry: 14; stroke: #334155; stroke-width: 1.5; }
       .title { font: 17px Arial, sans-serif; font-weight: bold; fill: #0f172a; }
-      .label { font: 14px Arial, sans-serif; fill: #0f172a; text-anchor: middle; dominant-baseline: middle; }
-      .small { font: 12px Arial, sans-serif; fill: #475569; text-anchor: middle; }
+      .label { font: 16px Arial, sans-serif; fill: #0f172a; text-anchor: middle; dominant-baseline: middle; }
+      .small { font: 12px Arial, sans-serif; fill: #64748b; text-anchor: middle; }
       .line { stroke: #475569; stroke-width: 2; fill: none; marker-end: url(#arrow); }
     </style>
   </defs>
 
-  <rect x="40" y="60" width="260" height="220" class="group" stroke="#60a5fa"/>
-  <text x="64" y="90" class="title">app/</text>
-  <rect x="80" y="120" width="180" height="64" class="box" fill="#e0f2fe"/>
-  <text x="170" y="145" class="small">用户入口</text>
-  <text x="170" y="162" class="label">页面与导航</text>
-  <rect x="80" y="205" width="180" height="64" class="box" fill="#e0f2fe"/>
-  <text x="170" y="230" class="small">数据访问</text>
-  <text x="170" y="247" class="label">API Client / Repository</text>
+  <rect x="0" y="0" width="1280" height="560" fill="#ffffff"/>
 
-  <rect x="330" y="40" width="560" height="540" class="group" stroke="#4ade80"/>
-  <text x="354" y="70" class="title">backend/</text>
-  <rect x="525" y="95" width="170" height="68" class="box" fill="#dcfce7"/>
-  <text x="610" y="120" class="small">统一入口</text>
-  <text x="610" y="138" class="label">FastAPI API</text>
+  <rect x="45" y="95" width="210" height="120" class="group" stroke="#60a5fa"/>
+  <text x="70" y="125" class="title">app/</text>
+  <rect x="80" y="145" width="140" height="50" class="box" fill="#eff6ff"/>
+  <text x="150" y="171" class="label">用户端</text>
 
-  <rect x="390" y="220" width="160" height="68" class="box" fill="#dcfce7"/>
-  <text x="470" y="245" class="small">业务核心</text>
-  <text x="470" y="263" class="label">认证 / 业务域</text>
+  <rect x="1015" y="95" width="220" height="120" class="group" stroke="#60a5fa"/>
+  <text x="1040" y="125" class="title">web-admin/</text>
+  <rect x="1055" y="145" width="140" height="50" class="box" fill="#eff6ff"/>
+  <text x="1125" y="171" class="label">后台端</text>
 
-  <rect x="610" y="220" width="160" height="68" class="box" fill="#dcfce7"/>
-  <text x="690" y="245" class="small">图像生成</text>
-  <text x="690" y="263" class="label">AI 试戴服务</text>
+  <rect x="315" y="55" width="650" height="430" class="group" stroke="#4ade80"/>
+  <text x="340" y="85" class="title">backend/</text>
 
-  <rect x="390" y="330" width="160" height="68" class="box" fill="#dcfce7"/>
-  <text x="470" y="355" class="small">分析统计</text>
-  <text x="470" y="373" class="label">埋点与评测</text>
+  <rect x="560" y="115" width="160" height="56" class="box" fill="#dcfce7"/>
+  <text x="640" y="140" class="small">统一接口入口</text>
+  <text x="640" y="156" class="label">FastAPI API</text>
 
-  <rect x="610" y="330" width="160" height="68" class="box" fill="#dcfce7"/>
-  <text x="690" y="355" class="small">内容洞察</text>
-  <text x="690" y="373" class="label">趋势分析服务</text>
+  <rect x="385" y="240" width="220" height="74" class="box" fill="#dcfce7"/>
+  <text x="495" y="267" class="small">认证、门店、预约、收藏</text>
+  <text x="495" y="288" class="label">业务服务</text>
 
-  <rect x="475" y="465" width="210" height="68" class="box" fill="#fee2e2"/>
-  <text x="580" y="490" class="small">本地数据平面</text>
-  <text x="580" y="508" class="label">SQLite + DATA_DIR</text>
+  <rect x="675" y="240" width="220" height="74" class="box" fill="#dcfce7"/>
+  <text x="785" y="267" class="small">AI 试戴、埋点评测、趋势分析</text>
+  <text x="785" y="288" class="label">能力服务</text>
 
-  <rect x="930" y="60" width="260" height="150" class="group" stroke="#60a5fa"/>
-  <text x="954" y="90" class="title">web-admin/</text>
-  <rect x="970" y="120" width="180" height="64" class="box" fill="#e0f2fe"/>
-  <text x="1060" y="145" class="small">后台入口</text>
-  <text x="1060" y="162" class="label">Admin UI</text>
+  <rect x="520" y="375" width="240" height="64" class="box" fill="#fee2e2"/>
+  <text x="640" y="401" class="small">SQLite、图片文件、运行数据</text>
+  <text x="640" y="420" class="label">数据存储</text>
 
-  <rect x="930" y="260" width="280" height="230" class="group" stroke="#fbbf24"/>
-  <text x="954" y="290" class="title">外部依赖</text>
-  <rect x="975" y="325" width="190" height="64" class="box" fill="#fef3c7"/>
-  <text x="1070" y="350" class="small">试戴模型服务</text>
-  <text x="1070" y="367" class="label">DashScope 百炼</text>
-  <rect x="975" y="410" width="190" height="64" class="box" fill="#fef3c7"/>
-  <text x="1070" y="435" class="small">趋势采集来源</text>
-  <text x="1070" y="452" class="label">redbook / XhsSkills</text>
+  <rect x="1015" y="295" width="220" height="120" class="group" stroke="#fbbf24"/>
+  <text x="1040" y="325" class="title">外部依赖</text>
+  <rect x="1055" y="345" width="140" height="50" class="box" fill="#fef3c7"/>
+  <text x="1125" y="371" class="label">百炼 / 社区源</text>
 
-  <path d="M170 184 L170 205" class="line"/>
-  <path d="M260 237 L525 129" class="line"/>
-  <path d="M970 152 L695 129" class="line"/>
-
-  <path d="M610 163 L610 205" class="line"/>
-  <path d="M610 163 L470 220" class="line"/>
-  <path d="M610 163 L690 220" class="line"/>
-  <path d="M610 163 L470 330" class="line"/>
-  <path d="M610 163 L690 330" class="line"/>
-
-  <path d="M470 288 L470 465" class="line"/>
-  <path d="M470 398 L520 465" class="line"/>
-  <path d="M690 398 L640 465" class="line"/>
-
-  <path d="M770 254 L975 357" class="line"/>
-  <path d="M770 364 L975 442" class="line"/>
+  <path d="M220 170 L560 143" class="line"/>
+  <path d="M1055 170 L720 146" class="line"/>
+  <path d="M640 171 L495 240" class="line"/>
+  <path d="M640 171 L785 240" class="line"/>
+  <path d="M495 314 L590 375" class="line"/>
+  <path d="M785 314 L690 375" class="line"/>
+  <path d="M895 277 L1055 370" class="line"/>
 </svg>
