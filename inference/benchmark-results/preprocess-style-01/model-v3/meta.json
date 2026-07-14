@@ -1,0 +1,56 @@
+{
+  "schema_version": 3,
+  "asset_kind": "model_generated_transparent_nails",
+  "asset_id": "1727defff41d50951fa16a89",
+  "status": "ready",
+  "model": "qwen-image-2.0-pro",
+  "source_nail_count": 5,
+  "finger_count": 5,
+  "generated_count": 5,
+  "review_required": true,
+  "warnings": [
+    "甲面素材由大模型生成，上架前请人工复核还原度。"
+  ],
+  "nails": [
+    {
+      "finger": "thumb",
+      "file": "thumb.png",
+      "width": 189,
+      "height": 359,
+      "alpha_coverage": 0.7117
+    },
+    {
+      "finger": "index",
+      "file": "index.png",
+      "width": 173,
+      "height": 342,
+      "alpha_coverage": 0.6957
+    },
+    {
+      "finger": "middle",
+      "file": "middle.png",
+      "width": 177,
+      "height": 347,
+      "alpha_coverage": 0.707
+    },
+    {
+      "finger": "ring",
+      "file": "ring.png",
+      "width": 172,
+      "height": 341,
+      "alpha_coverage": 0.7
+    },
+    {
+      "finger": "pinky",
+      "file": "pinky.png",
+      "width": 142,
+      "height": 318,
+      "alpha_coverage": 0.6788
+    }
+  ],
+  "all": {
+    "file": "all.png"
+  },
+  "preview_url": "preview.jpg",
+  "needs_review_reason": null
+}

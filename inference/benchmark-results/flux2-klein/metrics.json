@@ -1,0 +1,20 @@
+{
+  "model": "black-forest-labs/FLUX.2-klein-4B",
+  "load_seconds": 901.745,
+  "runs": 3,
+  "steps": 4,
+  "width": 768,
+  "height": 1024,
+  "inference_seconds": [
+    3.117,
+    2.162,
+    2.107
+  ],
+  "mean_inference_seconds": 2.462,
+  "max_cuda_memory_gib": 16.735,
+  "outputs": [
+    "/root/autodl-tmp/flux2-results/flux2-klein-01.png",
+    "/root/autodl-tmp/flux2-results/flux2-klein-02.png",
+    "/root/autodl-tmp/flux2-results/flux2-klein-03.png"
+  ]
+}

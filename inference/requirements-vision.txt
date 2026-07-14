@@ -1,0 +1,2 @@
+mediapipe==0.10.18
+protobuf>=4.25.3,<5

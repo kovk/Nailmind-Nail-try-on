@@ -1,0 +1,7 @@
+# SAM3 itself is installed from the approved official repository:
+#   pip install -e /root/autodl-tmp/sam3-src
+timm>=1.0.17
+ftfy>=6.3.1
+iopath>=0.1.10
+einops>=0.8.1
+pycocotools>=2.0.10

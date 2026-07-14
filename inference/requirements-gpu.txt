@@ -1,0 +1,10 @@
+--index-url https://download.pytorch.org/whl/cu128
+--extra-index-url https://pypi.org/simple
+torch==2.7.1
+torchvision==0.22.1
+diffusers @ git+https://github.com/huggingface/diffusers.git
+transformers==5.13.0
+accelerate==1.14.0
+safetensors==0.7.0
+opencv-python-headless==4.10.0.84
+ultralytics==8.3.169

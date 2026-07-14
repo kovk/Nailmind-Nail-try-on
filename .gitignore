@@ -1,15 +1,23 @@
 .DS_Store
 
-# Root showcase repo keeps docs only
-app/
-backend/
-web-admin/
-client/
-server/
-tools/
-SPLIT_REPOS.md
-命题三美甲评测数据（对外版）.xlsx
-NailMind.apk
+# Split business repositories are published separately
+/app/
+/backend/
+/web-admin/
+/tools/
+/SPLIT_REPOS.md
+/命题三美甲评测数据（对外版）.xlsx
+/NailMind.apk
+
+# Publish only the primary solution document from docs
+/docs/*
+!/docs/方案设计文档.md
+
+# Local presentation and diagram-generation materials
+/outputs/
+/scripts/
+/小红书mock/
+*.docx
 
 # IDE and local tool state
 .idea/
@@ -20,12 +28,12 @@ tools/redbook/package-lock.json
 tools/redbook/package.json
 
 # Android / Gradle
-client/android/.gradle/
-client/android/build/
-client/android/app/build/
-client/android/local.properties
-client/android/keystore/
-client/android/tools/aapt2/
+app/android/.gradle/
+app/android/build/
+app/android/app/build/
+app/android/local.properties
+app/android/keystore/
+app/android/tools/aapt2/
 *.apk
 
 # Python
@@ -35,32 +43,36 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 .venv/
-server/api/.venv/
-server/api/__pycache__/
-server/api/app/__pycache__/
-server/api/tests/__pycache__/
-server/api/worker/__pycache__/
+backend/api/.venv/
+backend/api/__pycache__/
+backend/api/app/__pycache__/
+backend/api/tests/__pycache__/
+inference/.venv/
+inference/__pycache__/
+inference/app/__pycache__/
 
 # Local environment files
 .env
-server/api/.env
-server/api/.env.ai
-server/api/deploy/.env.remote
-server/trend_agent/.env.openclaw
-server/api/xhs-storage-state.json
+backend/api/.env
+backend/api/.env.ai
+backend/api/deploy/.env.remote
+inference/.env
 **/xhs-storage-state.json
 
 # Runtime data, models, and generated artifacts
+datasets/
 server-backups/
-server/api/.cache/
-server/api/.idea/
-server/api/data/nailmind.db
-server/api/data/state.json
-server/api/data/results/
-server/api/data/uploads/
-server/api/deploy/data/
-server/api/deploy/models/
-server/api/results/
+backend/api/.cache/
+backend/api/.idea/
+backend/api/data/nailmind.db
+backend/api/data/state.json
+backend/api/data/results/
+backend/api/data/uploads/
+backend/api/deploy/data/
+backend/api/deploy/models/
+backend/api/results/
+inference/models/
+inference/outputs/
 models/
 results/
 uploads/
